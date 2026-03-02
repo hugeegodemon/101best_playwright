@@ -1,11 +1,10 @@
 # Playwright BO
 
-📦 **playwright‑bo** 是一個使用 [Playwright](https://playwright.dev/) 建構的端對端測試專案，採用 TypeScript 編寫。
-目前專注於後台（BO）流程，自動化登入、登出與其他功能檢查。
+📦 **playwright-bo** is an end-to-end testing project built with [Playwright](https://playwright.dev/) using TypeScript. It currently focuses on backend (BO) workflows, automating login, logout, and other feature checks.
 
 ---
 
-## 📁 專案結構
+## 📁 Project Structure
 
 ```
 .
@@ -31,32 +30,32 @@
     └─ env.ts
 ```
 
-- **pages/**：Page Object 模式的頁面類別。
-- **tests/**：測試檔案，依模組區分（bo/fo、smoke/regression 等）。
-- **playwright.config.ts**：Playwright 配置。
-- **env.ts**：環境變數載入與管理。
-- **test-data/**、**test-results/**：測試資料與結果輸出。
-- **playwright-report/**：HTML 測試報告。
+- **pages/**: Page Object classes for UI interactions.
+- **tests/**: Test files organized by module (bo/fo, smoke/regression, etc.).
+- **playwright.config.ts**: Playwright configuration.
+- **env.ts**: Environment variable loader/manager.
+- **test-data/**, **test-results/**: Storage for test data and results.
+- **playwright-report/**: HTML test report output.
 
 ---
 
-## ⚙️ 環境設定
+## ⚙️ Setup
 
-1. **安裝依賴**
+1. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. **安裝 Playwright 瀏覽器**
+2. **Install Playwright browsers**
 
    ```bash
    npx playwright install
    ```
 
-3. **環境變數**
+3. **Environment variables**
 
-   建立 `.env` 檔案（可參考 `utils/env.ts`）：
+   Create a `.env` file (refer to `utils/env.ts`):
 
    ```ini
    BASE_URL=https://your-app-url
@@ -66,31 +65,31 @@
 
 ---
 
-## 🚀 執行測試
+## 🚀 Running Tests
 
-- **執行全部測試**
+- **Run all tests**
 
   ```bash
   npx playwright test
   ```
 
-- **執行指定資料夾/檔案**
+- **Run a specific folder/file**
 
   ```bash
   npx playwright test tests/bo/auth/login.spec.ts
   ```
 
-- **產生 HTML 報告後開啟**
+- **Generate and open HTML report**
 
   ```bash
   npx playwright show-report
   ```
 
-> 👉 測試結果與報告會輸出至 `test-results/` 與 `playwright-report/`。
+> 👉 Results and reports are output to `test-results/` and `playwright-report/`.
 
 ---
 
-## 📝 範例指令
+## 📝 Example Scripts
 
 ```json
 "scripts": {
@@ -99,31 +98,31 @@
 }
 ```
 
-可視需要在 `package.json` 中新增。
+Add these to `package.json` as needed.
 
 ---
 
-## 💡 開發提示
+## 💡 Development Tips
 
-- 使用 Page Object (`pages/bo/*.ts`) 將重複操作封裝。
-- 在 `tests/bo/auth.setup.ts` 中設置共用前置動作（如登入）。
-- 可依照分支或測試類型建立更多資料夾（如 `regression/`, `smoke/`）。
-
----
-
-## 📦 相依套件
-
-- `@playwright/test` – 官方測試框架
-- `typescript` – 型別支援
-- `dotenv` – 環境變數
-- `@types/node` – Node.js 型別定義
+- Use Page Objects (`pages/bo/*.ts`) to encapsulate repeated operations.
+- Set up common preconditions (e.g. login) in `tests/bo/auth.setup.ts`.
+- Organize additional folders by feature or test type (`regression/`, `smoke/`).
 
 ---
 
-## ✅ 支援
+## 📦 Dependencies
 
-如需協助或想擴充測試範圍，可參考 [Playwright Docs](https://playwright.dev/docs/intro) 或聯絡維護者。
+- `@playwright/test` – official testing framework
+- `typescript` – type support
+- `dotenv` – environment variable management
+- `@types/node` – Node.js type definitions
 
 ---
 
-歡迎開始編寫和執行你的自動化測試！🚀
+## ✅ Support
+
+For help or to expand test coverage, refer to the [Playwright Docs](https://playwright.dev/docs/intro) or contact the maintainers.
+
+---
+
+Happy writing and running your automation tests! 🚀

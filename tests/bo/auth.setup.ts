@@ -1,0 +1,21 @@
+import { test as setup, expect } from '@playwright/test';
+import * as path from 'path';
+import * as fs from 'fs';
+import { ENV } from '../../utils/env';
+import { BOLoginPage } from '../../pages/bo/LoginPage';
+
+const authDir = path.resolve(process.cwd(), 'playwright/.auth');
+const authFile = path.join(authDir, 'bo-user.json');
+
+setup('authenticate', async ({ page }) => {
+  fs.mkdirSync(authDir, { recursive: true });
+
+  const loginPage = new BOLoginPage(page);
+
+  await loginPage.goto(ENV.SBO_URL);
+  await loginPage.login(ENV.SBO_AUTH_ACCOUNT, ENV.SBO_AUTH_PASSWORD);
+
+  await expect(page).not.toHaveURL(/login/i);
+
+  await page.context().storageState({ path: authFile });
+});

@@ -58,9 +58,11 @@
    Create a `.env` file (refer to `utils/env.ts`):
 
    ```ini
-   BASE_URL=https://your-app-url
-   USERNAME=your-username
-   PASSWORD=your-password
+    SBO_URL=https://your-bo-url.com
+    SBO_LOGIN_ACCOUNT=your_login_test_account
+    SBO_LOGIN_PASSWORD=your_login_test_password
+    SBO_AUTH_ACCOUNT=your_authenticated_test_account
+    SBO_AUTH_PASSWORD=your_authenticated_test_password
    ```
 
 ---
@@ -78,6 +80,12 @@
   ```bash
   npx playwright test tests/bo/auth/login.spec.ts
   ```
+
+- **Run with visible browser**
+
+  ```bash
+  npx playwright test --headed
+  ```  
 
 - **Generate and open HTML report**
 

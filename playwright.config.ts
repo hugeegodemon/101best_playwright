@@ -23,7 +23,8 @@ export default defineConfig({
   },
   {
     name: 'bo-no-auth',
-    testMatch: /.*bo[\\/]+auth[\\/]+login\.spec\.ts/,
+    testMatch: /.*bo[\\/]+auth[\\/]+.*\.spec\.ts/,
+    testIgnore: /.*bo[\\/]+auth[\\/]+logout\.spec\.ts/,
   },
   {
     name: 'bo-authenticated',
@@ -38,7 +39,6 @@ export default defineConfig({
   {
     name: 'bo-logout',
     testMatch: /.*bo[\\/]+auth[\\/]+logout\.spec\.ts/,
-    dependencies: ['bo-no-auth'],
   },
 ]
 });

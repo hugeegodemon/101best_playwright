@@ -141,3 +141,45 @@ For help or to expand test coverage, refer to the [Playwright Docs](https://play
 ---
 
 Happy writing and running your automation tests! 🚀
+
+---
+
+## i18n Sync From Google Sheets
+
+Use `npm run sync:i18n` to export a Google Sheet into i18n JSON files.
+
+Expected sheet columns:
+
+```csv
+namespace,key,zh-TW,en,ja
+bo,login.title,後台登入,Back Office Login,管理画面ログイン
+fo,home.banner.cta,立即選購,Shop Now,今すぐ購入
+```
+
+- `key` is required and supports dot notation for nested JSON.
+- Locale columns like `zh-TW`, `en`, `ja` become output JSON files.
+- `namespace` is optional. If present, output is written to `i18n/<locale>/<namespace>.json`.
+- Without `namespace`, output is written to `i18n/<locale>.json`.
+
+Environment variables:
+
+```ini
+GOOGLE_SHEET_ID=your_google_sheet_id
+GOOGLE_SHEET_GID=0
+GOOGLE_SHEET_GIDS=0,123456789,987654321
+I18N_OUTPUT_DIR=i18n
+```
+
+`GOOGLE_SHEET_GIDS` supports multiple worksheet ids. If it is set, it takes priority over `GOOGLE_SHEET_GID`, and all listed worksheets are merged into the generated JSON output.
+
+You can also override them directly:
+
+```bash
+node scripts/sync-i18n.js --sheetId=YOUR_SHEET_ID --gid=0 --outDir=playwright/i18n
+```
+
+Or export multiple worksheets in one run:
+
+```bash
+node scripts/sync-i18n.js --sheetId=YOUR_SHEET_ID --gids=0,123456789,987654321 --outDir=playwright/i18n
+```

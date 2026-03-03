@@ -81,6 +81,13 @@
   npx playwright test tests/bo/auth/login.spec.ts
   ```
 
+- **Run specific project**
+
+  ```bash
+  npx playwright test --project=bo-no-auth
+  npx playwright test --project=bo-authenticated
+  ```
+
 - **Run with visible browser**
 
   ```bash

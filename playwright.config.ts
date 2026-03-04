@@ -39,6 +39,7 @@ export default defineConfig({
   {
     name: 'bo-logout',
     testMatch: /.*bo[\\/]+auth[\\/]+logout\.spec\.ts/,
+    dependencies: ['bo-no-auth', 'bo-authenticated'],
   },
 ]
 });

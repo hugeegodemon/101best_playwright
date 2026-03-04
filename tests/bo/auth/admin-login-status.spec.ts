@@ -19,7 +19,7 @@ test.describe('BO Admin Login Status', () => {
 
     await test.step('1. Login as super admin', async () => {
       await adminLoginPage.goto(ENV.SBO_URL);
-      await adminLoginPage.login(ENV.SBO_AUTH_ACCOUNT, ENV.SBO_AUTH_PASSWORD);
+      await adminLoginPage.login(ENV.SBO_ACCOUNT, ENV.SBO_PASSWORD);
 
       await expect(page).not.toHaveURL(/login/i);
     });

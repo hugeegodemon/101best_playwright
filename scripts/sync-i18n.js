@@ -3,8 +3,6 @@ const path = require('path');
 const https = require('https');
 require('dotenv').config();
 
-const RESERVED_COLUMNS = new Set(['key', 'namespace', 'description', 'desc', 'note', 'notes']);
-
 function parseArgs(argv) {
   return argv.reduce((acc, arg) => {
     if (!arg.startsWith('--')) {
@@ -160,6 +158,19 @@ function setNestedValue(target, dottedKey, value) {
   cursor[parts[parts.length - 1]] = value;
 }
 
+function mergeObjects(target, source) {
+  for (const [key, value] of Object.entries(source)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      mergeObjects(ensureObject(target, key), value);
+      continue;
+    }
+
+    target[key] = value;
+  }
+
+  return target;
+}
+
 function writeJson(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
@@ -172,15 +183,65 @@ function buildExportUrl(sheetId, gid) {
   return url.toString();
 }
 
-function normalizeHeaders(headers) {
-  return headers.map((header) => header.replace(/^\uFEFF/, '').trim());
-}
+function buildTranslationsFromSheet(rows) {
+  if (rows.length < 3) {
+    throw new Error('Worksheet must include 2 header rows and at least one data row.');
+  }
 
-function toRowObject(headers, cells) {
-  return headers.reduce((acc, header, index) => {
-    acc[header] = (cells[index] || '').trim();
-    return acc;
-  }, {});
+  const descriptionHeader = (rows[0][0] || '').replace(/^\uFEFF/, '').trim();
+  const keyHeader = (rows[1][0] || '').replace(/^\uFEFF/, '').trim().toLowerCase();
+  const validKeyHeaders = new Set(['key', 'code', '代碼', '代码']);
+
+  if (!descriptionHeader) {
+    throw new Error('Cell A1 must contain a description label.');
+  }
+
+  if (!validKeyHeaders.has(keyHeader)) {
+    throw new Error('Cell A2 must contain the key column label (expected "key", "code", "代碼", or "代码").');
+  }
+
+  const localeCodeRow = rows[1].map((cell) => cell.replace(/^\uFEFF/, '').trim());
+  const localeColumns = [];
+
+  for (let columnIndex = 1; columnIndex < localeCodeRow.length; columnIndex += 1) {
+    const locale = localeCodeRow[columnIndex];
+
+    if (!locale) {
+      continue;
+    }
+
+    localeColumns.push({ columnIndex, locale });
+  }
+
+  if (localeColumns.length === 0) {
+    throw new Error('Row 2 must include locale codes from column B onward.');
+  }
+
+  const filesByLocale = new Map();
+
+  for (const cells of rows.slice(2)) {
+    const translationKey = (cells[0] || '').replace(/^\uFEFF/, '').trim();
+
+    if (!translationKey) {
+      continue;
+    }
+
+    for (const { columnIndex, locale } of localeColumns) {
+      const translatedValue = (cells[columnIndex] || '').trim();
+
+      if (!translatedValue) {
+        continue;
+      }
+
+      if (!filesByLocale.has(locale)) {
+        filesByLocale.set(locale, {});
+      }
+
+      setNestedValue(filesByLocale.get(locale), translationKey, translatedValue);
+    }
+  }
+
+  return filesByLocale;
 }
 
 async function main() {
@@ -198,50 +259,14 @@ async function main() {
     const exportUrl = buildExportUrl(sheetId, gid);
     const csvText = await fetchText(exportUrl);
     const rows = parseCsv(csvText);
+    const sheetTranslations = buildTranslationsFromSheet(rows);
 
-    if (rows.length < 2) {
-      throw new Error(`Worksheet gid=${gid} must include a header row and at least one data row.`);
-    }
-
-    const headers = normalizeHeaders(rows[0]);
-    const keyColumn = headers.find((header) => header.toLowerCase() === 'key');
-
-    if (!keyColumn) {
-      throw new Error(`Worksheet gid=${gid} must include a "key" column.`);
-    }
-
-    const namespaceColumn = headers.find((header) => header.toLowerCase() === 'namespace');
-    const localeColumns = headers.filter((header) => header && !RESERVED_COLUMNS.has(header.toLowerCase()));
-
-    if (localeColumns.length === 0) {
-      throw new Error(`Worksheet gid=${gid} has no locale columns. Add headers like "en", "zh-TW", "ja", etc.`);
-    }
-
-    for (const cells of rows.slice(1)) {
-      const row = toRowObject(headers, cells);
-      const translationKey = row[keyColumn];
-
-      if (!translationKey) {
-        continue;
+    for (const [locale, payload] of sheetTranslations.entries()) {
+      if (!filesByLocale.has(locale)) {
+        filesByLocale.set(locale, {});
       }
 
-      const namespace = namespaceColumn ? row[namespaceColumn] || 'common' : null;
-
-      for (const locale of localeColumns) {
-        const translatedValue = row[locale];
-
-        if (!translatedValue) {
-          continue;
-        }
-
-        if (!filesByLocale.has(locale)) {
-          filesByLocale.set(locale, {});
-        }
-
-        const localeRoot = filesByLocale.get(locale);
-        const target = namespace ? ensureObject(localeRoot, namespace) : localeRoot;
-        setNestedValue(target, translationKey, translatedValue);
-      }
+      mergeObjects(filesByLocale.get(locale), payload);
     }
 
     processedSheets.push(exportUrl);
@@ -254,17 +279,6 @@ async function main() {
   const writtenFiles = [];
 
   for (const [locale, payload] of filesByLocale.entries()) {
-    const hasNamespaces = Boolean(namespaceColumn);
-
-    if (hasNamespaces) {
-      for (const [namespace, namespacePayload] of Object.entries(payload)) {
-        const filePath = path.join(outDir, locale, `${namespace}.json`);
-        writeJson(filePath, namespacePayload);
-        writtenFiles.push(filePath);
-      }
-      continue;
-    }
-
     const filePath = path.join(outDir, `${locale}.json`);
     writeJson(filePath, payload);
     writtenFiles.push(filePath);

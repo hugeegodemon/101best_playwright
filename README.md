@@ -1,33 +1,33 @@
 # Playwright BO
 
-📦 **playwright-bo** is an end-to-end testing project built with [Playwright](https://playwright.dev/) using TypeScript. It currently focuses on backend (BO) workflows, automating login, logout, and other feature checks.
+**playwright-bo** is an end-to-end testing project built with [Playwright](https://playwright.dev/) using TypeScript. It currently focuses on backend (BO) workflows, automating login, logout, and other feature checks.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
-```
+```text
 .
-├─ pages/
-│   ├─ bo/
-│   │   ├─ CommonPage.ts
-│   │   └─ LoginPage.ts
-│   └─ fo/
-├─ playwright/
-├─ playwright-report/
-├─ test-data/
-├─ test-results/
-├─ tests/
-│   ├─ bo/
-│   │   ├─ auth.setup.ts
-│   │   └─ auth/
-│   │       ├─ login.spec.ts
-│   │       └─ logout.spec.ts
-│   ├─ regression/
-│   └─ smoke/
-│       └─ dashboard.spec.ts
-└─ utils/
-    └─ env.ts
+|-- pages/
+|   |-- bo/
+|   |   |-- CommonPage.ts
+|   |   `-- LoginPage.ts
+|   `-- fo/
+|-- playwright/
+|-- playwright-report/
+|-- test-data/
+|-- test-results/
+|-- tests/
+|   |-- bo/
+|   |   |-- auth.setup.ts
+|   |   `-- auth/
+|   |       |-- login.spec.ts
+|   |       `-- logout.spec.ts
+|   |-- regression/
+|   `-- smoke/
+|       `-- dashboard.spec.ts
+`-- utils/
+    `-- env.ts
 ```
 
 - **pages/**: Page Object classes for UI interactions.
@@ -39,7 +39,7 @@
 
 ---
 
-## ⚙️ Setup
+## Setup
 
 1. **Install dependencies**
 
@@ -58,16 +58,16 @@
    Create a `.env` file (refer to `utils/env.ts`):
 
    ```ini
-    SBO_URL=https://your-bo-url.com
-    SBO_LOGIN_ACCOUNT=your_login_test_account
-    SBO_LOGIN_PASSWORD=your_login_test_password
-    SBO_AUTH_ACCOUNT=your_authenticated_test_account
-    SBO_AUTH_PASSWORD=your_authenticated_test_password
+   SBO_URL=https://your-bo-url.com
+   SBO_LOGIN_ACCOUNT=your_login_test_account
+   SBO_LOGIN_PASSWORD=your_login_test_password
+   SBO_AUTH_ACCOUNT=your_authenticated_test_account
+   SBO_AUTH_PASSWORD=your_authenticated_test_password
    ```
 
 ---
 
-## 🚀 Running Tests
+## Running Tests
 
 - **Run all tests**
 
@@ -92,7 +92,7 @@
 
   ```bash
   npx playwright test --headed
-  ```  
+  ```
 
 - **Generate and open HTML report**
 
@@ -100,11 +100,11 @@
   npx playwright show-report
   ```
 
-> 👉 Results and reports are output to `test-results/` and `playwright-report/`.
+Results and reports are output to `test-results/` and `playwright-report/`.
 
 ---
 
-## 📝 Example Scripts
+## Example Scripts
 
 ```json
 "scripts": {
@@ -117,7 +117,7 @@ Add these to `package.json` as needed.
 
 ---
 
-## 💡 Development Tips
+## Development Tips
 
 - Use Page Objects (`pages/bo/*.ts`) to encapsulate repeated operations.
 - Set up common preconditions (e.g. login) in `tests/bo/auth.setup.ts`.
@@ -125,41 +125,47 @@ Add these to `package.json` as needed.
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
-- `@playwright/test` – official testing framework
-- `typescript` – type support
-- `dotenv` – environment variable management
-- `@types/node` – Node.js type definitions
+- `@playwright/test`: official testing framework
+- `typescript`: type support
+- `dotenv`: environment variable management
+- `@types/node`: Node.js type definitions
 
 ---
 
-## ✅ Support
+## Support
 
 For help or to expand test coverage, refer to the [Playwright Docs](https://playwright.dev/docs/intro) or contact the maintainers.
 
 ---
 
-Happy writing and running your automation tests! 🚀
-
----
-
 ## i18n Sync From Google Sheets
 
-Use `npm run sync:i18n` to export a Google Sheet into i18n JSON files.
+Use `node scripts/sync-i18n.js` to export translations from Google Sheets into i18n JSON files.
 
-Expected sheet columns:
+The script only supports this worksheet layout:
+
+- Row 1: labels for human-readable descriptions
+- Row 2: locale codes
+- Column A: translation keys
+- Column B onward: translated values for each locale
+- Row 3 onward: translation data
+
+Example:
 
 ```csv
-namespace,key,zh-TW,en,ja
-bo,login.title,後台登入,Back Office Login,管理画面ログイン
-fo,home.banner.cta,立即選購,Shop Now,今すぐ購入
+說明,英文,繁體中文,簡體中文
+代碼,en-us,zh-tw,zh-cn
+withdraw,Withdrawal,提款,提款
+withdrawal_amount,Withdrawal Amount,提款金額,提款金额
+login.title,Back Office Login,後台登入,后台登录
 ```
 
-- `key` is required and supports dot notation for nested JSON.
-- Locale columns like `zh-TW`, `en`, `ja` become output JSON files.
-- `namespace` is optional. If present, output is written to `i18n/<locale>/<namespace>.json`.
-- Without `namespace`, output is written to `i18n/<locale>.json`.
+- `A2` accepts `key`, `code`, `代碼`, or `代码`.
+- Translation keys support dot notation and are written as nested JSON.
+- Each locale code in row 2 becomes one output file, for example `i18n/en-us.json` or `i18n/zh-tw.json`.
+- Multiple worksheets can be merged into the same output.
 
 Environment variables:
 

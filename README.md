@@ -165,7 +165,12 @@ login.title,Back Office Login,後台登入,后台登录
 - `A2` accepts `key`, `code`, `代碼`, or `代码`.
 - Translation keys support dot notation and are written as nested JSON.
 - Each locale code in row 2 becomes one output file, for example `i18n/en-us.json` or `i18n/zh-tw.json`.
-- Multiple worksheets can be merged into the same output.
+- Worksheets are grouped by order and merged into domains in a repeating cycle:
+- Sheet 1, 5, 9... => `error_code`
+- Sheet 2, 6, 10... => merged into both `backend` and `frontend`
+- Sheet 3, 7, 11... => `backend`
+- Sheet 4, 8, 12... => `frontend`
+- Each locale file contains `error_code`, `backend`, and `frontend` objects at the top level.
 
 Environment variables:
 

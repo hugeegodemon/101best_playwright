@@ -30,8 +30,11 @@ function uniqueValues(values) {
   return [...new Set(values)];
 }
 
-function buildWorksheetListUrl(sheetId) {
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+function buildWorksheetListUrls(sheetId) {
+  return [
+    `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+    `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+  ];
 }
 
 function extractGidsFromSpreadsheetHtml(html) {
@@ -60,17 +63,20 @@ async function resolveGids(args, sheetId) {
     }
   }
 
-  try {
-    const worksheetListHtml = await fetchText(buildWorksheetListUrl(sheetId));
-    const discoveredGids = extractGidsFromSpreadsheetHtml(worksheetListHtml);
+  for (const worksheetListUrl of buildWorksheetListUrls(sheetId)) {
+    try {
+      const worksheetListHtml = await fetchText(worksheetListUrl);
+      const discoveredGids = extractGidsFromSpreadsheetHtml(worksheetListHtml);
 
-    if (discoveredGids.length > 0) {
-      return discoveredGids;
+      if (discoveredGids.length > 0) {
+        return discoveredGids;
+      }
+    } catch (error) {
+      console.warn(`Warning: unable to inspect worksheet list at ${worksheetListUrl} (${error.message}).`);
     }
-  } catch (error) {
-    console.warn(`Warning: unable to discover worksheet ids automatically (${error.message}).`);
   }
 
+  console.warn('Warning: unable to discover worksheet ids automatically. Falling back to gid=0.');
   return ['0'];
 }
 
@@ -126,12 +132,21 @@ function parseCsv(input) {
   let row = [];
   let value = '';
   let inQuotes = false;
+  let fieldStarted = false;
+
+  function pushValue() {
+    row.push(value);
+    value = '';
+    fieldStarted = false;
+  }
 
   for (let i = 0; i < input.length; i += 1) {
     const char = input[i];
     const nextChar = input[i + 1];
 
     if (char === '"') {
+      fieldStarted = true;
+
       if (inQuotes && nextChar === '"') {
         value += '"';
         i += 1;
@@ -142,8 +157,7 @@ function parseCsv(input) {
     }
 
     if (char === ',' && !inQuotes) {
-      row.push(value);
-      value = '';
+      pushValue();
       continue;
     }
 
@@ -152,18 +166,18 @@ function parseCsv(input) {
         i += 1;
       }
 
-      row.push(value);
+      pushValue();
       rows.push(row);
       row = [];
-      value = '';
       continue;
     }
 
+    fieldStarted = true;
     value += char;
   }
 
-  if (value.length > 0 || row.length > 0) {
-    row.push(value);
+  if (fieldStarted || value.length > 0 || row.length > 0) {
+    pushValue();
     rows.push(row);
   }
 
@@ -223,6 +237,24 @@ function buildExportUrl(sheetId, gid) {
   url.searchParams.set('format', 'csv');
   url.searchParams.set('gid', gid);
   return url.toString();
+}
+
+function getDomainsForSheetIndex(sheetIndex) {
+  const groupIndex = sheetIndex % 4;
+
+  if (groupIndex === 0) {
+    return ['error_code'];
+  }
+
+  if (groupIndex === 1) {
+    return ['backend', 'frontend'];
+  }
+
+  if (groupIndex === 2) {
+    return ['backend'];
+  }
+
+  return ['frontend'];
 }
 
 function buildTranslationsFromSheet(rows) {
@@ -297,7 +329,8 @@ async function main() {
   const filesByLocale = new Map();
   const processedSheets = [];
 
-  for (const gid of gids) {
+  for (const [sheetIndex, gid] of gids.entries()) {
+    const domains = getDomainsForSheetIndex(sheetIndex);
     const exportUrl = buildExportUrl(sheetId, gid);
     const csvText = await fetchText(exportUrl);
     const rows = parseCsv(csvText);
@@ -308,10 +341,13 @@ async function main() {
         filesByLocale.set(locale, {});
       }
 
-      mergeObjects(filesByLocale.get(locale), payload);
+      const localePayload = filesByLocale.get(locale);
+      for (const domain of domains) {
+        mergeObjects(ensureObject(localePayload, domain), payload);
+      }
     }
 
-    processedSheets.push(exportUrl);
+    processedSheets.push({ domains, exportUrl });
   }
 
   if (filesByLocale.size === 0) {
@@ -327,8 +363,8 @@ async function main() {
   }
 
   console.log(`Exported ${writtenFiles.length} file(s) from ${processedSheets.length} worksheet(s).`);
-  for (const exportUrl of processedSheets) {
-    console.log(`- source: ${exportUrl}`);
+  for (const { domains, exportUrl } of processedSheets) {
+    console.log(`- source [${domains.join(', ')}]: ${exportUrl}`);
   }
   for (const filePath of writtenFiles) {
     console.log(`- ${filePath}`);

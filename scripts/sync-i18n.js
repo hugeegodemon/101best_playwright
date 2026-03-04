@@ -15,21 +15,63 @@ function parseArgs(argv) {
   }, {});
 }
 
-function resolveGids(args) {
-  const rawGids = args.gids || process.env.GOOGLE_SHEET_GIDS;
+function parseGidList(rawGids) {
+  if (!rawGids) {
+    return [];
+  }
 
-  if (rawGids) {
-    const gids = rawGids
-      .split(',')
-      .map((gid) => gid.trim())
-      .filter(Boolean);
+  return rawGids
+    .split(',')
+    .map((gid) => gid.trim())
+    .filter(Boolean);
+}
+
+function uniqueValues(values) {
+  return [...new Set(values)];
+}
+
+function buildWorksheetListUrl(sheetId) {
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+}
+
+function extractGidsFromSpreadsheetHtml(html) {
+  const matches = html.match(/[\?&#]gid=(\d+)/g) || [];
+
+  return uniqueValues(
+    matches
+      .map((match) => {
+        const gidMatch = match.match(/gid=(\d+)/);
+        return gidMatch ? gidMatch[1] : null;
+      })
+      .filter(Boolean),
+  );
+}
+
+async function resolveGids(args, sheetId) {
+  if (args.gid) {
+    return [args.gid];
+  }
+
+  if (args.gids) {
+    const gids = parseGidList(args.gids);
 
     if (gids.length > 0) {
       return gids;
     }
   }
 
-  return [args.gid || process.env.GOOGLE_SHEET_GID || '0'];
+  try {
+    const worksheetListHtml = await fetchText(buildWorksheetListUrl(sheetId));
+    const discoveredGids = extractGidsFromSpreadsheetHtml(worksheetListHtml);
+
+    if (discoveredGids.length > 0) {
+      return discoveredGids;
+    }
+  } catch (error) {
+    console.warn(`Warning: unable to discover worksheet ids automatically (${error.message}).`);
+  }
+
+  return ['0'];
 }
 
 function requireValue(value, message) {
@@ -247,10 +289,10 @@ function buildTranslationsFromSheet(rows) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const sheetId = args.sheetId || process.env.GOOGLE_SHEET_ID;
-  const gids = resolveGids(args);
   const outDir = path.resolve(process.cwd(), args.outDir || process.env.I18N_OUTPUT_DIR || 'i18n');
 
   requireValue(sheetId, 'Missing Google Sheet id. Set GOOGLE_SHEET_ID or pass --sheetId=...');
+  const gids = await resolveGids(args, sheetId);
 
   const filesByLocale = new Map();
   const processedSheets = [];

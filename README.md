@@ -171,12 +171,10 @@ Environment variables:
 
 ```ini
 GOOGLE_SHEET_ID=your_google_sheet_id
-GOOGLE_SHEET_GID=0
-GOOGLE_SHEET_GIDS=0,123456789,987654321
 I18N_OUTPUT_DIR=i18n
 ```
 
-`GOOGLE_SHEET_GIDS` supports multiple worksheet ids. If it is set, it takes priority over `GOOGLE_SHEET_GID`, and all listed worksheets are merged into the generated JSON output.
+The script discovers worksheet ids from the spreadsheet page automatically, so `.env` only needs `GOOGLE_SHEET_ID`. If auto-discovery fails, it falls back to the default worksheet `gid=0`.
 
 You can also override them directly:
 

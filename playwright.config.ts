@@ -25,6 +25,7 @@ export default defineConfig({
     name: 'bo-no-auth',
     testMatch: /.*bo[\\/]+auth[\\/]+.*\.spec\.ts/,
     testIgnore: /.*bo[\\/]+auth[\\/]+logout\.spec\.ts/,
+    workers: 1,
   },
   {
     name: 'bo-authenticated',

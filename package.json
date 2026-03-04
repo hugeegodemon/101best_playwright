@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "sync:i18n": "node scripts/sync-i18n.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

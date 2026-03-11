@@ -9,16 +9,25 @@ export class BOLoginPage {
   }
 
   async goto(baseUrl: string) {
-    await this.page.goto(baseUrl);
+    await this.page.goto(baseUrl, { waitUntil: 'networkidle' });
   }
 
   async login(account: string, password: string) {
     const accountText = await this.i18n.t('account');
     const passwordText = await this.i18n.t('password');
     const loginText = await this.i18n.t('login');
+    const formInputs = this.page.locator('form input.el-input__inner');
 
-    await this.page.getByPlaceholder(accountText).fill(account);
-    await this.page.getByPlaceholder(passwordText).fill(password);
+    await this.page.getByRole('button', { name: loginText }).waitFor({ state: 'visible' });
+
+    try {
+      await this.page.getByPlaceholder(accountText).fill(account);
+      await this.page.getByPlaceholder(passwordText).fill(password);
+    } catch {
+      await formInputs.nth(0).fill(account);
+      await formInputs.nth(1).fill(password);
+    }
+
     await this.page.getByRole('button', { name: loginText }).click();
   }
 

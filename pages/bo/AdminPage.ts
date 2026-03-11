@@ -15,6 +15,9 @@ export class BOAdminPage {
   readonly resetButton: Locator;
   readonly searchButton: Locator;
   readonly saveButton: Locator;
+  readonly resetPasswordButton: Locator;
+  readonly resetPasswordDialog: Locator;
+  readonly resetPasswordFooter: Locator;
   private readonly i18n: BOI18n;
 
   constructor(page: Page) {
@@ -34,6 +37,11 @@ export class BOAdminPage {
     this.resetButton = formActionArea.locator('button.btn-default').first();
     this.searchButton = formActionArea.locator('button.btn-primary').first();
     this.saveButton = formActionBox.locator('button.btn-primary').first();
+    this.resetPasswordButton = page.getByRole('button', { name: /reset password/i }).first();
+    this.resetPasswordDialog = page.locator('.el-dialog').filter({
+      has: page.locator('.el-dialog__body form'),
+    }).last();
+    this.resetPasswordFooter = this.resetPasswordDialog.locator('.el-dialog__footer, [role="contentinfo"]').last();
   }
 
   private async text(key: string): Promise<string> {
@@ -102,6 +110,14 @@ export class BOAdminPage {
     return this.page.getByLabel(await this.text('e_mail'));
   }
 
+  private formErrors(): Locator {
+    return this.page.locator('.el-form-item__error');
+  }
+
+  private alertMessage(): Locator {
+    return this.page.locator('.el-message, [role="alert"]').last();
+  }
+
   private async createStatusSelect(): Promise<Locator> {
     const statusText = await this.text('state');
 
@@ -112,6 +128,31 @@ export class BOAdminPage {
       .first();
   }
 
+  private async fieldError(key: string): Promise<Locator> {
+    const labelText = await this.text(key);
+
+    return this.page
+      .locator('.el-form-item')
+      .filter({ has: this.page.getByText(labelText, { exact: true }) })
+      .locator('.el-form-item__error')
+      .first();
+  }
+
+  private async resetPasswordInput(): Promise<Locator> {
+    return this.resetPasswordDialog.getByLabel(await this.text('password'), { exact: true });
+  }
+
+  private async resetConfirmPasswordInput(): Promise<Locator> {
+    return this.resetPasswordDialog.getByLabel(await this.text('confirm_password'));
+  }
+
+  private visibleOptionByName(name: string): Locator {
+    return this.page
+      .locator('.el-select-dropdown__item')
+      .filter({ hasText: name })
+      .last();
+  }
+
   async gotoAdminList() {
     await this.sidebar.clickSubMenu('admin_management', 'admin_management_list');
   }
@@ -120,11 +161,22 @@ export class BOAdminPage {
     await this.addButton.click();
   }
 
+  async gotoAddAdmin() {
+    await this.gotoAdminList();
+    await this.clickAddAdmin();
+  }
+
   async selectCreateStatus(status: AdminStatus) {
     const optionText = await this.statusText(status);
+    const currentText = ((await (await this.createStatusSelect()).innerText()) ?? '').trim();
+
+    if (currentText.includes(optionText)) {
+      return;
+    }
 
     await (await this.createStatusSelect()).click();
-    await this.page.getByRole('option', { name: optionText }).click();
+    await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
+    await this.visibleOptionByName(optionText).click({ force: true });
   }
 
   async fillCreateAdminForm(data: {
@@ -132,18 +184,40 @@ export class BOAdminPage {
     name: string;
     password: string;
     email: string;
-    status: AdminStatus;
+    confirmPassword?: string;
+    status?: AdminStatus;
   }) {
     await (await this.accountInput()).fill(data.account);
     await (await this.nameInput()).fill(data.name);
     await (await this.passwordInput()).fill(data.password);
-    await (await this.confirmPasswordInput()).fill(data.password);
+    await (await this.confirmPasswordInput()).fill(data.confirmPassword ?? data.password);
     await (await this.emailInput()).fill(data.email);
-    await this.selectCreateStatus(data.status);
+
+    if (data.status !== undefined) {
+      await this.selectCreateStatus(data.status);
+    }
+  }
+
+  async fillEditAdminForm(data: {
+    name?: string;
+    email?: string;
+    status?: AdminStatus;
+  }) {
+    if (data.name !== undefined) {
+      await (await this.nameInput()).fill(data.name);
+    }
+
+    if (data.email !== undefined) {
+      await (await this.emailInput()).fill(data.email);
+    }
+
+    if (data.status !== undefined) {
+      await this.selectCreateStatus(data.status);
+    }
   }
 
   async save() {
-    await this.saveButton.click();
+    await this.page.locator('.center-btn button.btn-primary').last().click({ force: true });
   }
 
   async createAdmin(data: {
@@ -151,7 +225,8 @@ export class BOAdminPage {
     name: string;
     password: string;
     email: string;
-    status: AdminStatus;
+    confirmPassword?: string;
+    status?: AdminStatus;
   }) {
     await this.fillCreateAdminForm(data);
     await this.save();
@@ -161,7 +236,8 @@ export class BOAdminPage {
     const optionText = await this.searchTypeText(type);
 
     await (await this.searchTypeSelect()).click();
-    await this.page.getByRole('option', { name: optionText }).click();
+    await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
+    await this.visibleOptionByName(optionText).click({ force: true });
   }
 
   async fillKeyword(keyword: string) {
@@ -172,11 +248,30 @@ export class BOAdminPage {
     const optionText = await this.statusFilterText(status);
 
     await (await this.statusFilterSelect()).click();
-    await this.page.getByRole('option', { name: optionText }).click();
+    await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
+    await this.visibleOptionByName(optionText).click({ force: true });
   }
 
   async clickSearch() {
-    await this.searchButton.click();
+    await this.page
+      .locator('.page-box')
+      .first()
+      .locator('form.page-filter-form .el-form-item')
+      .last()
+      .locator('button')
+      .last()
+      .click({ force: true });
+  }
+
+  async clickReset() {
+    await this.page
+      .locator('.page-box')
+      .first()
+      .locator('form.page-filter-form .el-form-item')
+      .last()
+      .locator('button')
+      .first()
+      .click({ force: true });
   }
 
   async searchAdmin(account: string) {
@@ -202,6 +297,14 @@ export class BOAdminPage {
     await expect(this.table).toContainText(account);
   }
 
+  async expectNoAdminData() {
+    await expect(this.page.getByText('No data', { exact: true })).toBeVisible();
+  }
+
+  async expectRowContainsText(account: string, text: string) {
+    await expect(this.rowByAccount(account)).toContainText(text);
+  }
+
   rowByAccount(account: string): Locator {
     return this.page.locator('tr.el-table__row').filter({
       has: this.page.locator('td .cell', { hasText: account }),
@@ -213,9 +316,143 @@ export class BOAdminPage {
     await row.locator('div.bg-mainBlue').first().click();
   }
 
+  async gotoEditByAccount(account: string) {
+    await this.gotoAdminList();
+    await this.searchAdmin(account);
+    await this.clickEditByAccount(account);
+  }
+
   async changeStatus(status: AdminStatus) {
     await this.selectCreateStatus(status);
     await this.save();
+  }
+
+  async updateAdmin(data: {
+    name?: string;
+    email?: string;
+    status?: AdminStatus;
+  }) {
+    await this.fillEditAdminForm(data);
+    await this.save();
+  }
+
+  async expectRequiredValidationErrors(count: number) {
+    const requiredText = await this.text('required_field');
+
+    await expect(this.formErrors()).toHaveCount(count);
+    await expect(this.formErrors()).toHaveText(Array(count).fill(requiredText));
+  }
+
+  async expectAlertContainsAny(messages: Array<string | RegExp>) {
+    const alerts = this.page.locator('.el-message, [role="alert"]');
+    await expect(alerts.first()).toBeVisible();
+
+    const actualTexts = ((await alerts.allTextContents()) ?? []).map((text) => text.trim());
+    expect(
+      messages.some((message) =>
+        actualTexts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        )
+      )
+    ).toBeTruthy();
+  }
+
+  async expectAnyFormErrorContains(messages: Array<string | RegExp>) {
+    await expect(this.formErrors().first()).toBeVisible();
+
+    const actualTexts = ((await this.formErrors().allTextContents()) ?? []).map((text) => text.trim());
+    expect(
+      messages.some((message) =>
+        actualTexts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        )
+      )
+    ).toBeTruthy();
+  }
+
+  async expectFieldErrorContains(key: string, messages: Array<string | RegExp>) {
+    const error = await this.fieldError(key);
+    await expect(error).toBeVisible();
+
+    const actualText = (await error.textContent())?.trim() ?? '';
+    expect(
+      messages.some((message) =>
+        typeof message === 'string' ? actualText.includes(message) : message.test(actualText)
+      )
+    ).toBeTruthy();
+  }
+
+  async clearEditField(key: 'name' | 'e_mail') {
+    const locator = key === 'name' ? await this.nameInput() : await this.emailInput();
+    await locator.fill('');
+  }
+
+  async expectAccountFieldDisabled() {
+    const accountInput = await this.accountInput();
+    await expect(accountInput).toBeDisabled({ timeout: 2000 }).catch(async () => {
+      await expect(accountInput).toHaveAttribute('disabled', '');
+    });
+  }
+
+  async expectResetPasswordButtonVisible() {
+    await expect(this.resetPasswordButton).toBeVisible();
+  }
+
+  async openResetPasswordDialog() {
+    await this.resetPasswordButton.click();
+  }
+
+  async expectResetPasswordDialogVisible() {
+    await expect(this.resetPasswordDialog).toBeVisible();
+    await expect(this.resetPasswordDialog).toContainText(await this.text('reset_password'));
+  }
+
+  async fillResetPasswordForm(data: { password?: string; confirmPassword?: string }) {
+    if (data.password !== undefined) {
+      await (await this.resetPasswordInput()).fill(data.password);
+    }
+
+    if (data.confirmPassword !== undefined) {
+      await (await this.resetConfirmPasswordInput()).fill(data.confirmPassword);
+    }
+  }
+
+  async confirmResetPassword() {
+    await this.resetPasswordFooter.locator('button').nth(1).click({ force: true });
+  }
+
+  async cancelResetPassword() {
+    await this.resetPasswordFooter.locator('button').first().click({ force: true });
+  }
+
+  async expectResetPasswordDialogHidden() {
+    await expect(this.resetPasswordDialog).toBeHidden();
+  }
+
+  async expectResetPasswordRequiredErrors(count: number) {
+    const requiredText = await this.text('required_field');
+    const errors = this.resetPasswordDialog.locator('.el-form-item__error');
+
+    await expect(errors).toHaveCount(count);
+    await expect(errors).toHaveText(Array(count).fill(requiredText));
+  }
+
+  async expectResetPasswordFormErrorContains(messages: Array<string | RegExp>) {
+    const errors = this.resetPasswordDialog.locator('.el-form-item__error');
+    await expect(errors.first()).toBeVisible();
+
+    const actualTexts = (await errors.allTextContents()).map((text) => text.trim());
+    expect(
+      messages.some((message) =>
+        actualTexts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        )
+      )
+    ).toBeTruthy();
+  }
+
+  async expectResetPasswordConfirmDisabled() {
+    await expect(this.resetPasswordFooter.locator('button').nth(1)).toBeDisabled();
   }
 
   async expectStatusInList(account: string, status: AdminStatus) {

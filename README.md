@@ -63,7 +63,10 @@
    SBO_LOGIN_PASSWORD=your_login_test_password
    SBO_AUTH_ACCOUNT=your_authenticated_test_account
    SBO_AUTH_PASSWORD=your_authenticated_test_password
+   SBO_LOCALE=en-us
    ```
+
+   `SBO_LOCALE` is optional. If omitted, tests will not prewrite `localStorage.language` and will instead follow the language value the site sets for itself.
 
 ---
 

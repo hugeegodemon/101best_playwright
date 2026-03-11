@@ -2,14 +2,18 @@ import { test, expect } from '@playwright/test';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
 import { BOLoginPage } from '../../../pages/bo/LoginPage';
 import { ENV } from '../../../utils/env';
+import { BOI18n, useLocaleInContext } from '../../../utils/i18n';
 
 test.describe('BO Admin Login Status', () => {
   test('enabled admin can login, updates last login info, and cannot login after being disabled', async ({
     page,
     browser,
   }) => {
+    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
+
     const adminLoginPage = new BOLoginPage(page);
     const adminPage = new BOAdminPage(page);
+    const i18n = new BOI18n(page);
 
     const unique = Date.now();
     const adminAccount = `auto${unique}`;
@@ -42,6 +46,7 @@ test.describe('BO Admin Login Status', () => {
 
     await test.step('3. Verify enabled admin can login', async () => {
       const loginContext = await browser.newContext();
+      await useLocaleInContext(loginContext, ENV.SBO_LOCALE);
       const loginTab = await loginContext.newPage();
       const loginPage = new BOLoginPage(loginTab);
 
@@ -72,6 +77,7 @@ test.describe('BO Admin Login Status', () => {
 
     await test.step('6. Verify disabled admin cannot login', async () => {
       const loginContext = await browser.newContext();
+      await useLocaleInContext(loginContext, ENV.SBO_LOCALE);
       const loginTab = await loginContext.newPage();
       const loginPage = new BOLoginPage(loginTab);
 
@@ -79,7 +85,7 @@ test.describe('BO Admin Login Status', () => {
       await loginPage.login(adminAccount, adminPassword);
 
       await expect(loginTab).toHaveURL(/login/i);
-      await expect(loginTab.getByRole('alert')).toContainText('000010 Account disabled');
+      await expect(loginTab.getByRole('alert')).toContainText(await i18n.error('000010'));
 
       await loginContext.close();
     });

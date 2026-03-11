@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { ENV } from '../../../utils/env';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
+import { useLocaleInContext } from '../../../utils/i18n';
 
 test.describe('BO Admin CRUD', () => {
   test('can create edit and search admin account', async ({ page }) => {
+    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
+
     const adminPage = new BOAdminPage(page);
 
     const unique = Date.now();

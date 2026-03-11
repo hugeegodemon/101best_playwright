@@ -1,12 +1,19 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { BOI18n } from '../../utils/i18n';
 
 export class BOSidebarPage {
   readonly page: Page;
   readonly root: Locator;
+  private readonly i18n: BOI18n;
 
   constructor(page: Page) {
     this.page = page;
     this.root = page.locator('ul[role="menubar"]').first();
+    this.i18n = new BOI18n(page);
+  }
+
+  private async menuText(key: string): Promise<string> {
+    return this.i18n.t(key);
   }
 
   private menuContainerByText(name: string): Locator {
@@ -19,28 +26,35 @@ export class BOSidebarPage {
     return this.menuContainerByText(name).locator('.el-sub-menu__title').first();
   }
 
-  async expectMenuVisible(name: string) {
+  async expectMenuVisible(key: string) {
+    const name = await this.menuText(key);
     await expect(this.root.locator('span', { hasText: name }).first()).toBeVisible();
   }
 
-  async expectMenuExpanded(name: string) {
+  async expectMenuExpanded(key: string) {
+    const name = await this.menuText(key);
     await expect(this.menuContainerByText(name)).toHaveAttribute('aria-expanded', 'true');
   }
 
-  async expectMenuCollapsed(name: string) {
+  async expectMenuCollapsed(key: string) {
+    const name = await this.menuText(key);
     await expect(this.menuContainerByText(name)).toHaveAttribute('aria-expanded', 'false');
   }
-  async collapseMenu(name: string) {
+
+  async collapseMenu(key: string) {
+    const name = await this.menuText(key);
     const menu = this.menuContainerByText(name);
     const expanded = await menu.getAttribute('aria-expanded');
 
     if (expanded === 'true') {
-        await this.menuTitleByText(name).click();
+      await this.menuTitleByText(name).click();
     }
 
-    await this.expectMenuCollapsed(name);
+    await this.expectMenuCollapsed(key);
   }
-  async expandMenu(name: string) {
+
+  async expandMenu(key: string) {
+    const name = await this.menuText(key);
     const menu = this.menuContainerByText(name);
     const expanded = await menu.getAttribute('aria-expanded');
 
@@ -48,11 +62,14 @@ export class BOSidebarPage {
       await this.menuTitleByText(name).click();
     }
 
-    await this.expectMenuExpanded(name);
+    await this.expectMenuExpanded(key);
   }
 
-  async expandNestedMenu(parent: string, child: string) {
-    await this.expandMenu(parent);
+  async expandNestedMenu(parentKey: string, childKey: string) {
+    const parent = await this.menuText(parentKey);
+    const child = await this.menuText(childKey);
+
+    await this.expandMenu(parentKey);
 
     const parentMenu = this.menuContainerByText(parent);
     const childMenu = parentMenu.locator('li[role="menuitem"]').filter({
@@ -68,8 +85,11 @@ export class BOSidebarPage {
     await expect(childMenu).toHaveAttribute('aria-expanded', 'true');
   }
 
-  async clickSubMenu(parent: string, child: string) {
-    await this.expandMenu(parent);
+  async clickSubMenu(parentKey: string, childKey: string) {
+    const parent = await this.menuText(parentKey);
+    const child = await this.menuText(childKey);
+
+    await this.expandMenu(parentKey);
 
     const parentMenu = this.menuContainerByText(parent);
     const childMenu = parentMenu.locator('li[role="menuitem"]').filter({
@@ -79,8 +99,12 @@ export class BOSidebarPage {
     await childMenu.click();
   }
 
-  async clickThirdLevelMenu(parent: string, child: string, grandChild: string) {
-    await this.expandNestedMenu(parent, child);
+  async clickThirdLevelMenu(parentKey: string, childKey: string, grandChildKey: string) {
+    const parent = await this.menuText(parentKey);
+    const child = await this.menuText(childKey);
+    const grandChild = await this.menuText(grandChildKey);
+
+    await this.expandNestedMenu(parentKey, childKey);
 
     const parentMenu = this.menuContainerByText(parent);
     const childMenu = parentMenu.locator('li[role="menuitem"]').filter({
@@ -94,7 +118,8 @@ export class BOSidebarPage {
     await grandChildMenu.click();
   }
 
-  async expectSubMenuVisible(name: string) {
+  async expectSubMenuVisible(key: string) {
+    const name = await this.menuText(key);
     await expect(this.root.locator('span', { hasText: name }).first()).toBeVisible();
   }
 }

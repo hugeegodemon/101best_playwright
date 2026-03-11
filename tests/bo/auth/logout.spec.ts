@@ -2,8 +2,11 @@ import { test, expect } from '@playwright/test';
 import { ENV } from '../../../utils/env';
 import { BOLoginPage } from '../../../pages/bo/LoginPage';
 import { BOCommonPage } from '../../../pages/bo/CommonPage';
+import { useLocaleInContext } from '../../../utils/i18n';
 
 test('user can logout', async ({ page }) => {
+  await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
+
   const loginPage = new BOLoginPage(page);
   const commonPage = new BOCommonPage(page);
 
@@ -12,5 +15,5 @@ test('user can logout', async ({ page }) => {
 
   await commonPage.logout();
 
-  await expect(page.getByPlaceholder('Account')).toBeVisible();
+  await commonPage.expectLoginPageVisible();
 });

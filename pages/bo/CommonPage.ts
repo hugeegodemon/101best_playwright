@@ -1,16 +1,15 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { BOI18n } from '../../utils/i18n';
 
 export class BOCommonPage {
   readonly page: Page;
   readonly userMenuButton: Locator;
-  readonly signOutButton: Locator;
-  readonly accountInput: Locator;
+  private readonly i18n: BOI18n;
 
   constructor(page: Page) {
     this.page = page;
     this.userMenuButton = page.locator('button:has(.user-wrap)').first();
-    this.signOutButton = page.getByRole('button', { name: /sign out/i });
-    this.accountInput = page.getByPlaceholder('Account');
+    this.i18n = new BOI18n(page);
   }
 
   async openUserMenu() {
@@ -20,8 +19,11 @@ export class BOCommonPage {
   }
 
   async clickSignOut() {
-    await this.signOutButton.waitFor({ state: 'visible', timeout: 10000 });
-    await this.signOutButton.click();
+    const signOutText = await this.i18n.t('sign_out');
+    const signOutButton = this.page.getByRole('button', { name: signOutText });
+
+    await signOutButton.waitFor({ state: 'visible', timeout: 10000 });
+    await signOutButton.click();
   }
 
   async logout() {
@@ -30,6 +32,7 @@ export class BOCommonPage {
   }
 
   async expectLoginPageVisible() {
-    await expect(this.accountInput).toBeVisible();
+    const accountText = await this.i18n.t('account');
+    await expect(this.page.getByPlaceholder(accountText)).toBeVisible();
   }
 }

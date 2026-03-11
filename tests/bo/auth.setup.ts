@@ -2,6 +2,7 @@ import { test as setup, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ENV } from '../../utils/env';
+import { useLocaleInContext } from '../../utils/i18n';
 import { BOLoginPage } from '../../pages/bo/LoginPage';
 
 const authDir = path.resolve(process.cwd(), 'playwright/.auth');
@@ -9,6 +10,7 @@ const authFile = path.join(authDir, 'bo-user.json');
 
 setup('authenticate', async ({ page }) => {
   fs.mkdirSync(authDir, { recursive: true });
+  await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
   const loginPage = new BOLoginPage(page);
 

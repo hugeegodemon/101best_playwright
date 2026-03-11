@@ -12,4 +12,5 @@ export const ENV = {
   SBO_PASSWORD: required('SBO_PASSWORD'),
   SBO_AUTH_ACCOUNT: required('SBO_AUTH_ACCOUNT'),
   SBO_AUTH_PASSWORD: required('SBO_AUTH_PASSWORD'),
+  SBO_LOCALE: process.env.SBO_LOCALE,
 };

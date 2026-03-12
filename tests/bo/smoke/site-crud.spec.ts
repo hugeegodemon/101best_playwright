@@ -35,8 +35,9 @@ test.describe('BO Site CRUD', () => {
     await sitePage.searchSite(siteName);
     await sitePage.expectSearchShowsSite(siteName);
     const texts = await sitePage.rowTextsBySiteName(siteName);
+    const regionText = await sitePage.regionText();
     expect(texts[0]).toContain(siteName);
-    expect(texts[1]).toContain('Vietnam');
+    expect(texts[1]).toContain(regionText);
     expect(texts[2]).toContain('Asia/Ho_Chi_Minh');
     expect(texts[3]).toBe('ON');
   });
@@ -74,8 +75,10 @@ test.describe('BO Site CRUD', () => {
       backendUrl: editedBackendUrl,
     });
     await sitePage.saveEdit();
-    await sitePage.expectLatestAlertContains(/success/i);
     await expect(page).toHaveURL(/\/system\/branch$/);
+    await sitePage.waitForToastToDisappear();
+    await sitePage.searchSite(editedName);
+    await sitePage.expectSearchShowsSite(editedName);
   });
 
   test('can toggle created site back-office and frontend status from list', async ({ page }) => {

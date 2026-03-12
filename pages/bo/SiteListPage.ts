@@ -23,6 +23,17 @@ export class BOSiteListPage {
     return this.i18n.t(key);
   }
 
+  private format(template: string, vars?: Record<string, string | number>): string {
+    if (!vars) {
+      return template;
+    }
+
+    return Object.entries(vars).reduce(
+      (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+      template
+    );
+  }
+
   private async label(key: string): Promise<string> {
     const backendText = await this.i18n.t(key, 'backend');
     if (backendText !== key) {
@@ -32,8 +43,40 @@ export class BOSiteListPage {
     return this.i18n.t(key, 'frontend');
   }
 
-  private async basicStatusText(status: 'Enable' | 'Disable'): Promise<string> {
+  async copy(
+    key: string,
+    namespace: 'backend' | 'frontend' | 'error_code' = 'backend',
+    vars?: Record<string, string | number>
+  ): Promise<string> {
+    return this.format(await this.i18n.t(key, namespace), vars);
+  }
+
+  async hiddenCodePlaceholderText(min = 1, max = 8): Promise<string> {
+    return this.copy('sender_placeholder', 'backend', { number1: min, number2: max });
+  }
+
+  private async filterStatusText(status: 'Enable' | 'Disable'): Promise<string> {
     return this.label(status === 'Enable' ? 'basic_status_1' : 'basic_status_0');
+  }
+
+  private async simpleStatusText(status: 'Enable' | 'Disable'): Promise<string> {
+    return this.label(status === 'Enable' ? 'simple_status_1' : 'simple_status_0');
+  }
+
+  private async templateText(template: SiteTemplate): Promise<string> {
+    return this.copy(template === 'Layout 1' ? 'template_1' : 'template_2');
+  }
+
+  async regionText(key = 'region_code_1'): Promise<string> {
+    return this.copy(key);
+  }
+
+  async localeText(key = 'locale_0'): Promise<string> {
+    return this.copy(key);
+  }
+
+  async gameProviderText(key = 'slots'): Promise<string> {
+    return this.label(key);
   }
 
   private async actionButton(key: string): Promise<Locator> {
@@ -146,9 +189,10 @@ export class BOSiteListPage {
   async expectAddSiteVisible() {
     await expect(this.page).toHaveURL(/\/system\/branch\/add/);
     await expect(this.page.getByText(await this.text('basic_information'), { exact: true })).toBeVisible();
-    await expect(
-      this.page.locator('p').filter({ hasText: await this.text('website_setting') }).last()
-    ).toBeVisible();
+    await expect(await this.inputByKey('platform_name')).toBeVisible();
+    await expect(await this.inputByKey('hide_code')).toBeVisible();
+    await expect(this.urlInput(0)).toBeVisible();
+    await expect(this.urlInput(1)).toBeVisible();
     await this.page.waitForTimeout(2000);
     await expect(this.page.locator('input[type=file]').first()).toBeAttached();
   }
@@ -161,13 +205,13 @@ export class BOSiteListPage {
     template?: SiteTemplate;
   }) {
     await (await this.inputByKey('platform_name')).fill(data.siteName);
-    await this.setSelectByLabel(await this.label('status'), 'Enable');
-    await this.setSelectByLabel(await this.label('foreground_status'), 'Enable');
-    await this.setSelectByLabel(await this.label('regions'), 'Vietnam');
+    await this.selectStatus('Enable');
+    await this.selectFrontendStatus('Enable');
+    await this.setSelectByLabel(await this.label('regions'), await this.regionText());
     await this.setSelectByLabel(await this.label('timezone'), 'Asia/Ho_Chi_Minh');
-    await this.setSelectByLabel(await this.label('info_53'), 'English');
+    await this.setSelectByLabel(await this.label('info_53'), await this.localeText());
     await (await this.inputByKey('hide_code')).fill(data.hiddenCode);
-    await this.setSelectByLabel(await this.label('select_version'), data.template ?? 'Layout 1');
+    await this.setSelectByLabel(await this.label('select_version'), await this.templateText(data.template ?? 'Layout 1'));
     await this.urlInput(0).fill(data.frontendUrl);
     await this.urlInput(1).fill(data.backendUrl);
   }
@@ -177,11 +221,11 @@ export class BOSiteListPage {
   }
 
   async selectStatus(status: 'Enable' | 'Disable') {
-    await this.setSelectByLabel(await this.label('status'), status);
+    await this.setSelectByLabel(await this.label('status'), await this.simpleStatusText(status));
   }
 
   async selectFrontendStatus(status: 'Enable' | 'Disable') {
-    await this.setSelectByLabel(await this.label('foreground_status'), status);
+    await this.setSelectByLabel(await this.label('foreground_status'), await this.simpleStatusText(status));
   }
 
   async selectRegion(region: string) {
@@ -273,7 +317,7 @@ export class BOSiteListPage {
   }
 
   async selectTemplate(template: SiteTemplate) {
-    await this.setSelectByLabel(await this.label('select_version'), template);
+    await this.setSelectByLabel(await this.label('select_version'), await this.templateText(template));
   }
 
   private async setSelectOpen(wrapperIndex: number) {
@@ -346,6 +390,10 @@ export class BOSiteListPage {
     await expect((await this.labeledFormItem(label, index)).locator('.el-form-item__error')).toHaveText(message);
   }
 
+  async expectFieldErrorByKey(labelKey: string, messageKey: string, index = 0) {
+    await this.expectFieldError(await this.label(labelKey), await this.copy(messageKey), index);
+  }
+
   async expectUnlabeledFieldError(index: number, message: string) {
     await expect(this.unlabeledFormItem(index).locator('.el-form-item__error')).toHaveText(message);
   }
@@ -354,8 +402,20 @@ export class BOSiteListPage {
     await expect(this.page.locator('.el-form-item__error').filter({ hasText: message })).toHaveCount(count);
   }
 
+  async expectErrorTextCountByKey(messageKey: string, count: number) {
+    await this.expectErrorTextCount(await this.copy(messageKey), count);
+  }
+
   async expectAnyErrorText(message: string) {
     await expect(this.page.locator('.el-form-item__error').filter({ hasText: message }).first()).toBeVisible();
+  }
+
+  async expectAnyErrorTextByKey(messageKey: string, vars?: Record<string, string | number>) {
+    await this.expectAnyErrorText(await this.copy(messageKey, 'backend', vars));
+  }
+
+  async expectFieldErrorMatches(label: string, pattern: RegExp, index = 0) {
+    await expect((await this.labeledFormItem(label, index)).locator('.el-form-item__error')).toHaveText(pattern);
   }
 
   async expectOptionVisible(text: string) {
@@ -390,7 +450,7 @@ export class BOSiteListPage {
 
   async expectCreateSuccessAndReturnToList() {
     await expect(this.page).toHaveURL(/\/system\/branch$/);
-    await this.expectLatestAlertContains(/success/i);
+    await expect(this.topListRow()).toBeVisible();
   }
 
   async waitForToastToDisappear() {
@@ -562,7 +622,7 @@ export class BOSiteListPage {
 
   async selectFilterStatus(status: 'Enable' | 'Disable') {
     const wrapper = this.filterBox.locator('.el-select__wrapper').nth(1);
-    const optionText = await this.basicStatusText(status);
+    const optionText = await this.filterStatusText(status);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
     await this.visibleOption(optionText).waitFor({ state: 'visible' });

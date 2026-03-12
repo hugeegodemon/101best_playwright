@@ -19,10 +19,10 @@ test.describe('BO Site Image Validation', () => {
     await sitePage.expectAddSiteVisible();
 
     await sitePage.uploadSiteLogoH5(fixture('wrong-size-64.png'));
-    await sitePage.expectLatestAlertContains('Size error 92*48');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('size_error', 'backend', { width: 92, height: 48 }));
 
     await sitePage.uploadSiteLogoWeb(fixture('wrong-size-64.png'));
-    await sitePage.expectLatestAlertContains('Size error 226*70');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('size_error', 'backend', { width: 226, height: 70 }));
   });
 
   test('layout 2 site logo enforces required dimensions', async ({ page }) => {
@@ -33,10 +33,10 @@ test.describe('BO Site Image Validation', () => {
     await sitePage.selectTemplate('Layout 2');
 
     await sitePage.uploadSiteLogoH5(fixture('logo-h5.png'));
-    await sitePage.expectLatestAlertContains('Size error 78*40');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('size_error', 'backend', { width: 78, height: 40 }));
 
     await sitePage.uploadSiteLogoWeb(fixture('logo-web.png'));
-    await sitePage.expectLatestAlertContains('Size error 124*64');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('size_error', 'backend', { width: 124, height: 64 }));
   });
 
   test('site logo enforces png webp format and 80KB size limit', async ({ page }) => {
@@ -46,16 +46,16 @@ test.describe('BO Site Image Validation', () => {
     await sitePage.expectAddSiteVisible();
 
     await sitePage.uploadSiteLogoWeb(fixture('logo-web.jpg'));
-    await sitePage.expectLatestAlertContains('Only WebP and PNG formats are allowed');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('info_60'));
 
     await sitePage.uploadSiteLogoWeb(fixture('logo-web-oversize.png'));
-    await sitePage.expectLatestAlertContains('File size exceeds 80 KB');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('file_size_exceeds', 'backend', { size: 80 }));
 
     await sitePage.uploadSiteLogoH5(fixture('logo-h5.jpg'));
-    await sitePage.expectLatestAlertContains('Only WebP and PNG formats are allowed');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('info_60'));
 
     await sitePage.uploadSiteLogoH5(fixture('logo-h5-oversize.png'));
-    await sitePage.expectLatestAlertContains('File size exceeds 80 KB');
+    await sitePage.expectLatestAlertContains(await sitePage.copy('file_size_exceeds', 'backend', { size: 80 }));
   });
 
   test('site logo accepts valid png assets and allows next step', async ({ page }) => {

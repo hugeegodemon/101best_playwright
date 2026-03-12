@@ -169,6 +169,23 @@ File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/
 - `can toggle created site back-office and frontend status from list`
 - `edit site keeps primary language and hidden code disabled while other basic fields stay editable`
 
+## Game Provider
+
+### Game Provider Management
+
+File: [tests/bo/smoke/game-provider.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/game-provider.spec.ts)
+
+- `game provider list page opens with default filters`
+- `game provider list shows provider rows with type and status`
+- `first row exposes two action buttons`
+- `can open provider game list and return to provider list`
+- `add game dialog can open and close without saving`
+- `add game dialog validates required fields`
+- `game provider api dialog can open close and requires site selection`
+- `game provider api dialog shows json and remark after selecting a non-branch-2 site`
+- `jdb add game validates the visible game parameter fields`
+- `can create and edit a newly added jdb game`
+
 ## Summary
 
 - Auth: 5 cases
@@ -176,4 +193,5 @@ File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/
 - Admin: 18 cases
 - Operator: 18 cases
 - Site: 18 cases
-- Total: 70 cases
+- Game Provider: 10 cases
+- Total: 80 cases

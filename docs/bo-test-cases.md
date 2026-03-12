@@ -1,18 +1,18 @@
 # BO Test Cases
 
-Updated: 2026-03-11
+Updated: 2026-03-12
 
 ## Test Projects
 
 - `bo-no-auth`
   - `tests/bo/auth/*.spec.ts`
-  - 用於從登入頁開始的完整流程
+  - login / logout / password reset login flows
 - `bo-authenticated`
   - `tests/bo/smoke/*.spec.ts`
-  - 用於已登入狀態下的 smoke / CRUD / 驗證流程
+  - dashboard / navigation / CRUD / validation flows
 - `bo-setup`
   - `tests/bo/auth.setup.ts`
-  - 建立 `bo-authenticated` 需要的登入狀態
+  - prepares storage state for `bo-authenticated`
 - `bo-logout`
   - `tests/bo/auth/logout.spec.ts`
 
@@ -131,10 +131,49 @@ File: [tests/bo/smoke/operator-role.spec.ts](/c:/Users/IE_Jason/playwright-bo/te
 - `add role validates role name format`
 - `can create open edit dialog and change operator role status`
 
+## Site
+
+### Site Image Validation
+
+File: [tests/bo/smoke/site-image.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-image.spec.ts)
+
+- `layout 1 site logo enforces required dimensions`
+- `layout 2 site logo enforces required dimensions`
+- `site logo enforces png webp format and 80KB size limit`
+- `site logo accepts valid png assets and allows next step`
+- `frontend favicon accepts webp format`
+- `backend favicon accepts svg format`
+
+### Site Form Validation
+
+File: [tests/bo/smoke/site-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-validation.spec.ts)
+
+- `add site requires mandatory basic fields before next step`
+- `other regions cannot include selected primary region`
+- `other languages cannot include selected primary language`
+- `add site validates hidden code and url formats before next step`
+- `game settings can open and go back without losing basic information`
+- `game settings allows changing provider switch before successful create`
+
+### Site List / CRUD
+
+File: [tests/bo/smoke/site-list.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-list.spec.ts)
+
+- `site list page opens and can search existing site then reset filters`
+- `site list can show no data for unmatched filters and reset back to list`
+
+File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-crud.spec.ts)
+
+- `can create site and show it at top of site list`
+- `can edit created site and keep hidden code disabled on edit page`
+- `can toggle created site back-office and frontend status from list`
+- `edit site keeps primary language and hidden code disabled while other basic fields stay editable`
+
 ## Summary
 
 - Auth: 5 cases
 - Dashboard / Navbar / Header: 11 cases
 - Admin: 18 cases
-- Operator: 19 cases
-- Total: 53 cases
+- Operator: 18 cases
+- Site: 18 cases
+- Total: 70 cases

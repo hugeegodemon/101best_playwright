@@ -9,7 +9,7 @@ export class BOLoginPage {
   }
 
   async goto(baseUrl: string) {
-    await this.page.goto(baseUrl, { waitUntil: 'networkidle' });
+    await this.page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
   }
 
   async login(account: string, password: string) {
@@ -29,9 +29,29 @@ export class BOLoginPage {
     }
 
     await this.page.getByRole('button', { name: loginText }).click();
+    await this.confirmConcurrentSessionIfNeeded();
+  }
+
+  async expectDashboardVisible() {
+    await expect(this.page).toHaveURL(/dashboard/i, { timeout: 20000 });
+    await expect(this.page.getByText(await this.i18n.t('system_management'), { exact: true })).toBeVisible({
+      timeout: 20000,
+    });
   }
 
   async expectLoginError(message: string) {
     await expect(this.page.getByRole('alert')).toContainText(message);
+  }
+
+  private async confirmConcurrentSessionIfNeeded() {
+    const sessionDialog = this.page.locator('.el-message-box').filter({ hasText: /another session/i }).first();
+
+    try {
+      await sessionDialog.waitFor({ state: 'visible', timeout: 3000 });
+    } catch {
+      return;
+    }
+
+    await sessionDialog.getByRole('button').last().click();
   }
 }

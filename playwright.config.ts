@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }]],
 
   use: {
-    baseURL: process.env.BASE_URL,
+    baseURL: process.env.SBO_URL,
     headless: true,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

@@ -1,4 +1,4 @@
-import { test as setup, expect } from '@playwright/test';
+import { test as setup } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ENV } from '../../utils/env';
@@ -16,8 +16,7 @@ setup('authenticate', async ({ page }) => {
 
   await loginPage.goto(ENV.SBO_URL);
   await loginPage.login(ENV.SBO_AUTH_ACCOUNT, ENV.SBO_AUTH_PASSWORD);
-
-  await expect(page).not.toHaveURL(/login/i);
+  await loginPage.expectDashboardVisible();
 
   await page.context().storageState({ path: authFile });
 });

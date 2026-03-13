@@ -94,3 +94,26 @@ export function buildSystemBankDraft(codePrefix = 'AT', namePrefix = 'AUTO BANK'
     bankName: `${namePrefix} ${suffix}`,
   };
 }
+
+function formatDateTime(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  ].join(' ');
+}
+
+export function dateTimeOffset(minutes: number): string {
+  return formatDateTime(new Date(Date.now() + minutes * 60 * 1000));
+}
+
+export function buildCarouselLinkDraft(prefix = 'carousel') {
+  const suffix = uniqueDigits(10);
+
+  return {
+    suffix,
+    url: `example.com/${prefix}-${suffix}`,
+    editedUrl: `example.com/${prefix}-edited-${suffix}`,
+  };
+}

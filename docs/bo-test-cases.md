@@ -179,6 +179,24 @@ File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/
 - `can toggle created site back-office and frontend status from list`
 - `edit site keeps primary language and hidden code disabled while other basic fields stay editable`
 
+### Site Carousel
+
+File: [tests/bo/smoke/carousel.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/carousel.spec.ts)
+
+- `carousel list page opens with site selector and default list`
+- `add carousel dialog can open and cancel`
+- `site selector is required on add carousel dialog`
+- `hyperlink type shows url input and target options`
+- `hyperlink type validates https url format`
+- `specific game type requires game selection`
+- `upload image validates jpg webp format and size limit`
+- `permanent time option disables end time`
+- `hyperlink carousel can be scheduled and appears in schedule list`
+- `published hyperlink carousel shows publish success and appears in list`
+- `published carousel can be deleted from list`
+- `specific game carousel can be scheduled and appears in schedule list`
+- `scheduled hyperlink carousel can open edit dialog and submit successfully`
+
 ## Game Provider
 
 ### Game Provider Management
@@ -240,7 +258,7 @@ File: [tests/bo/smoke/system-bank-edit-validation.spec.ts](/c:/Users/IE_Jason/pl
 - Dashboard / Navbar / Header: 11 cases
 - Admin: 18 cases
 - Operator: 18 cases
-- Site: 18 cases
+- Site: 31 cases
 - Game Provider: 10 cases
 - System Bank: 16 cases
-- Total: 96 cases
+- Total: 109 cases

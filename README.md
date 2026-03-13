@@ -168,6 +168,7 @@ Current `@isolated-session` specs:
 
 ## Development Tips
 
+- Before adding or changing BO tests, follow [docs/bo-coding-guardrails.md](/c:/Users/IE_Jason/playwright-bo/docs/bo-coding-guardrails.md).
 - Use Page Objects (`pages/bo/*.ts`) to encapsulate repeated operations.
 - Keep cross-suite smoke login bootstrap in `tests/bo/global.setup.ts`.
 - Auth commands skip `tests/bo/global.setup.ts`; only smoke-related commands prepare the shared smoke session.

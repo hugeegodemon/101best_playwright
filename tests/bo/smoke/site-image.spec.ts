@@ -1,16 +1,11 @@
 import path from 'path';
-import { test } from '@playwright/test';
+import { test } from './test';
 import { BOSiteListPage } from '../../../pages/bo/SiteListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildSiteDraft } from '../helpers/data';
 
 const fixture = (name: string) => path.resolve(process.cwd(), 'tests/fixtures/images', name);
 
 test.describe('BO Site Image Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
 
   test('layout 1 site logo enforces required dimensions', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
@@ -60,16 +55,11 @@ test.describe('BO Site Image Validation', () => {
 
   test('site logo accepts valid png assets and allows next step', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
-    const unique = Date.now();
+    const site = buildSiteDraft('AutoSite');
 
     await sitePage.gotoAddSite();
     await sitePage.expectAddSiteVisible();
-    await sitePage.fillRequiredBasicFields({
-      siteName: `AutoSite${unique}`,
-      hiddenCode: `HC${String(unique).slice(-6)}`,
-      frontendUrl: `www.autosite${unique}-front.com`,
-      backendUrl: `www.autosite${unique}-back.com`,
-    });
+    await sitePage.fillRequiredBasicFields(site);
 
     await sitePage.uploadSiteLogoH5(fixture('logo-h5.png'));
     await sitePage.uploadSiteLogoWeb(fixture('logo-web.png'));

@@ -1,20 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test';
 import { BOSystemBankListPage } from '../../../pages/bo/SystemBankListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildSystemBankDraft } from '../helpers/data';
 
-test.describe('BO System Bank CRUD', () => {
+test.describe('BO System Bank CRUD @serial', () => {
   test('can create edit and search system bank', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const systemBankPage = new BOSystemBankListPage(page);
-    const unique = `${Date.now()}${Math.random().toString(36).slice(2, 5)}`;
-    const bankCode = `AT${unique}`;
-    const bankName = `AUTO BANK ${unique}`;
+    const { bankCode, bankName } = buildSystemBankDraft();
     const editedBankName = `${bankName} EDIT`;
 
     await test.step('1. Enter System Bank List page', async () => {
-      await page.goto(`${ENV.SBO_URL}/dashboard`);
       await systemBankPage.gotoSystemBankList();
       await systemBankPage.expectSystemBankListVisible();
     });

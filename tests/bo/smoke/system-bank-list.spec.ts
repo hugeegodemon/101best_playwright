@@ -1,14 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test';
 import { BOSystemBankListPage } from '../../../pages/bo/SystemBankListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildMissValue } from '../helpers/data';
 
-test.describe('BO System Bank List', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
-
+test.describe('BO System Bank List @serial', () => {
   test('system bank list page opens with region and bank filters', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
 
@@ -92,7 +86,7 @@ test.describe('BO System Bank List', () => {
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
-    await systemBankPage.fillBankCode(`NO_BANK_${Date.now()}`);
+    await systemBankPage.fillBankCode(buildMissValue('NO_BANK'));
     await systemBankPage.clickSearch();
 
     await systemBankPage.expectNoData();

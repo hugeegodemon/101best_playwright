@@ -1,25 +1,19 @@
-import { test } from '@playwright/test';
-import { ENV } from '../../../utils/env';
+import { test } from './test';
 import { BOOperatorRolePage } from '../../../pages/bo/OperatorRolePage';
-import { BOI18n, useLocaleInContext } from '../../../utils/i18n';
+import { BOI18n } from '../../../utils/i18n';
+import { buildRoleName } from '../helpers/data';
 
 test.describe('BO Operator Role', () => {
   test('role permission list page opens', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const rolePage = new BOOperatorRolePage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await rolePage.gotoRolePermissionList();
     await rolePage.expectRolePermissionListVisible();
   });
 
   test('add role dialog can open and cancel', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const rolePage = new BOOperatorRolePage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await rolePage.gotoRolePermissionList();
     await rolePage.openAddRoleDialog();
     await rolePage.expectAddRoleDialogVisible();
@@ -28,11 +22,8 @@ test.describe('BO Operator Role', () => {
   });
 
   test('add role requires role status and site', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const rolePage = new BOOperatorRolePage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await rolePage.gotoRolePermissionList();
     await rolePage.openAddRoleDialog();
     await rolePage.expectAddRoleDialogVisible();
@@ -41,12 +32,9 @@ test.describe('BO Operator Role', () => {
   });
 
   test('add role validates role name format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const rolePage = new BOOperatorRolePage(page);
     const i18n = new BOI18n(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await rolePage.gotoRolePermissionList();
     await rolePage.openAddRoleDialog();
     await rolePage.expectAddRoleDialogVisible();
@@ -61,18 +49,13 @@ test.describe('BO Operator Role', () => {
   });
 
   test('can create open edit dialog and change operator role status', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const rolePage = new BOOperatorRolePage(page);
-    const roleName = `AutoRole${Math.random().toString(36).replace(/[^a-z]/g, '').slice(0, 5)}`;
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const roleName = buildRoleName();
     await rolePage.gotoRolePermissionList();
     await rolePage.expectRolePermissionListVisible();
 
     await rolePage.createRole({ name: roleName, status: 'Enable' });
-    await rolePage.expectAlertContainsAny([/success/i]);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    await rolePage.expectSuccessAlert();
     await rolePage.gotoRolePermissionList();
     await rolePage.expectRolePermissionListVisible();
     await rolePage.expectRoleInList(roleName);
@@ -84,7 +67,7 @@ test.describe('BO Operator Role', () => {
     await rolePage.expectRoleDialogHidden();
 
     await rolePage.toggleStatusByRoleName(roleName);
-    await rolePage.expectAlertContainsAny([/success/i]);
+    await rolePage.expectSuccessAlert();
     await rolePage.expectRoleRowContains(roleName, 'OFF');
   });
 });

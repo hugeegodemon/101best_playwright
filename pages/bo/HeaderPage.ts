@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled } from './CommonPage';
 
 export class BOHeaderPage {
   readonly page: Page;
@@ -43,6 +44,7 @@ export class BOHeaderPage {
 
   async toggleNavbar() {
     await this.navbarToggle.click();
+    await waitForUiSettled(this.page);
   }
 
   async expectNavbarExpanded() {
@@ -72,6 +74,7 @@ export class BOHeaderPage {
 
   async openLanguageMenu() {
     await this.languageTrigger.click();
+    await waitForUiSettled(this.page);
   }
 
   async expectLanguageMenuVisible() {
@@ -83,6 +86,7 @@ export class BOHeaderPage {
 
   async openAccountPopover() {
     await this.avatarButton.click();
+    await waitForUiSettled(this.page);
   }
 
   async expectAccountPopoverVisible() {
@@ -101,6 +105,7 @@ export class BOHeaderPage {
   async clickAccountAction(key: 'password' | 'sign_out') {
     const actionText = await this.i18n.t(key);
     await this.accountPopover.getByRole('button', { name: actionText }).click();
+    await waitForUiSettled(this.page);
   }
 
   async openPasswordDialog() {
@@ -123,11 +128,13 @@ export class BOHeaderPage {
   async closePasswordDialog() {
     await this.passwordDialog.locator('.el-dialog__headerbtn').click();
     await expect(this.passwordDialog).toBeHidden();
+    await waitForUiSettled(this.page);
   }
 
   async signOut() {
     await this.openAccountPopover();
     await this.expectAccountPopoverVisible();
     await this.clickAccountAction('sign_out');
+    await waitForNetworkSettled(this.page);
   }
 }

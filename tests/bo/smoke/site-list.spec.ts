@@ -1,13 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test';
 import { BOSiteListPage } from '../../../pages/bo/SiteListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildMissValue } from '../helpers/data';
 
 test.describe('BO Site List', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
 
   test('site list page opens and can search existing site then reset filters', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
@@ -30,7 +25,7 @@ test.describe('BO Site List', () => {
     await sitePage.gotoSiteList();
     await sitePage.expectSiteListVisible();
 
-    await sitePage.fillSearchKeyword(`NO_SITE_${Date.now()}`);
+    await sitePage.fillSearchKeyword(buildMissValue('NO_SITE'));
     await sitePage.clickSearch();
     await sitePage.expectNoData();
 

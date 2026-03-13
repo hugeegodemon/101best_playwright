@@ -1,15 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test';
 import path from 'path';
 import { BOGameProviderPage } from '../../../pages/bo/GameProviderPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildGameDraft, uniqueDigits } from '../helpers/data';
 
 test.describe('BO Game Provider Management', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
-
   test('game provider list page opens with default filters', async ({ page }) => {
     const gameProviderPage = new BOGameProviderPage(page);
 
@@ -112,7 +106,7 @@ test.describe('BO Game Provider Management', () => {
   test('jdb add game validates the visible game parameter fields', async ({ page }) => {
     const gameProviderPage = new BOGameProviderPage(page);
     const imagePath = path.resolve('tests/fixtures/images/valid-square.png');
-    const uniqueName = `GPFMT${Date.now().toString().slice(-6)}`;
+    const uniqueName = `GPFMT${uniqueDigits(6)}`;
 
     await gameProviderPage.gotoGameProviderList();
     await gameProviderPage.expectGameProviderListVisible();
@@ -135,10 +129,7 @@ test.describe('BO Game Provider Management', () => {
   test('can create and edit a newly added jdb game', async ({ page }) => {
     const gameProviderPage = new BOGameProviderPage(page);
     const imagePath = path.resolve('tests/fixtures/images/valid-square.png');
-    const baseSuffix = Date.now().toString().slice(-6);
-    const gameName = `AUTOGP${baseSuffix}`;
-    const editedGameName = `${gameName}E`;
-    const code = `T${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+    const { gameName, editedGameName, code } = buildGameDraft();
 
     await gameProviderPage.gotoGameProviderList();
     await gameProviderPage.expectGameProviderListVisible();

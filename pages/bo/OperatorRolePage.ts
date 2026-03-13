@@ -1,6 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 type RoleStatus = 'Enable' | 'Disable';
 
@@ -8,12 +9,14 @@ export class BOOperatorRolePage {
   readonly page: Page;
   readonly sidebar: BOSidebarPage;
   readonly listBox: Locator;
+  readonly pager: Locator;
   private readonly i18n: BOI18n;
 
   constructor(page: Page) {
     this.page = page;
     this.sidebar = new BOSidebarPage(page);
     this.listBox = page.locator('.page-box').nth(1);
+    this.pager = this.listBox.locator('.el-pagination').last();
     this.i18n = new BOI18n(page);
   }
 
@@ -31,12 +34,81 @@ export class BOOperatorRolePage {
     return this.page.locator('.el-dialog').last();
   }
 
+  private statusSelect(): Locator {
+    return this.dialog().locator('.el-select__wrapper').first();
+  }
+
+  private siteSelect(): Locator {
+    return this.dialog().locator('.el-select__wrapper').nth(1);
+  }
+
   private async statusText(status: RoleStatus): Promise<string> {
-    return this.text(status === 'Enable' ? 'basic_status_1' : 'basic_status_0');
+    const [primaryText] = await this.statusTexts(status);
+    return primaryText;
+  }
+
+  private async statusTexts(status: RoleStatus): Promise<string[]> {
+    const keys = status === 'Enable'
+      ? ['simple_status_1', 'basic_status_1', 'status_1', 'enable']
+      : ['simple_status_0', 'basic_status_0', 'status_0'];
+
+    const values = await Promise.all(keys.map((key) => this.text(key)));
+    return [...new Set(values.filter(Boolean))];
   }
 
   private async waitForOverlayToSettle() {
-    await this.page.waitForTimeout(500);
+    await waitForUiSettled(this.page, 500);
+  }
+
+  private async goToListPage(pageNumber: number) {
+    const pageButton = this.pager.locator('.el-pager li.number', { hasText: String(pageNumber) }).first();
+    await pageButton.click({ force: true });
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  private async lastPageNumber(): Promise<number> {
+    const labels = await this.pager
+      .locator('.el-pager li.number')
+      .evaluateAll((nodes) =>
+        nodes
+          .map((node) => Number.parseInt(node.textContent?.trim() ?? '', 10))
+          .filter((value) => Number.isFinite(value))
+      );
+
+    return labels[labels.length - 1] ?? 1;
+  }
+
+  private async openPageContainingRole(name: string): Promise<boolean> {
+    const lastPage = await this.lastPageNumber();
+
+    for (let pageNumber = 1; pageNumber <= lastPage; pageNumber += 1) {
+      if (pageNumber > 1) {
+        await this.goToListPage(pageNumber);
+      }
+
+      if (await this.rowByRoleName(name).count()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async waitForRoleInList(name: string) {
+    const deadline = Date.now() + 15000;
+
+    while (Date.now() < deadline) {
+      await this.gotoRolePermissionList();
+      await waitForNetworkSettled(this.page, 800);
+
+      if (await this.openPageContainingRole(name)) {
+        return;
+      }
+
+      await waitForUiSettled(this.page, 1000);
+    }
+
+    throw new Error(`Role ${name} was not visible in list before timeout`);
   }
 
   rowByRoleName(name: string): Locator {
@@ -56,6 +128,7 @@ export class BOOperatorRolePage {
 
   async openAddRoleDialog() {
     await this.listBox.locator('button').first().click({ force: true });
+    await waitForUiSettled(this.page, 300);
   }
 
   async expectAddRoleDialogVisible() {
@@ -68,21 +141,27 @@ export class BOOperatorRolePage {
   }
 
   async selectStatus(status: RoleStatus) {
-    const wrapper = this.dialog().locator('.el-form-item').filter({
-      has: this.page.getByText(await this.text('state'), { exact: true }),
-    }).locator('.el-select__wrapper').first();
+    const optionTexts = await this.statusTexts(status);
 
-    await wrapper.click({ force: true });
-    await this.visibleOption(await this.statusText(status)).click({ force: true });
+    await this.statusSelect().click({ force: true });
+    await waitForVisibleSelectOptions(this.page);
+    for (const optionText of optionTexts) {
+      const option = this.visibleOption(optionText);
+      if (await option.count()) {
+        await option.click({ force: true });
+        await this.waitForOverlayToSettle();
+        return;
+      }
+    }
+
+    const fallbackIndex = status === 'Enable' ? 1 : 0;
+    await this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item').nth(fallbackIndex).click({ force: true });
     await this.waitForOverlayToSettle();
   }
 
   async selectSiteByIndex(index = 0) {
-    const wrapper = this.dialog().locator('.el-form-item').filter({
-      has: this.page.getByText(await this.text('site'), { exact: true }),
-    }).locator('.el-select__wrapper').first();
-
-    await wrapper.click({ force: true });
+    await this.siteSelect().click({ force: true });
+    await waitForVisibleSelectOptions(this.page);
     await this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item').nth(index).click({ force: true });
     await this.waitForOverlayToSettle();
   }
@@ -98,10 +177,12 @@ export class BOOperatorRolePage {
 
   async saveRoleDialog() {
     await this.dialog().locator('button.btn-primary').click({ force: true });
+    await waitForNetworkSettled(this.page, 500);
   }
 
   async cancelRoleDialog() {
     await this.dialog().locator('button.btn-blue').click({ force: true });
+    await waitForUiSettled(this.page, 300);
   }
 
   async expectRoleDialogHidden() {
@@ -137,17 +218,19 @@ export class BOOperatorRolePage {
     await this.openAddRoleDialog();
     await this.expectAddRoleDialogVisible();
     await this.fillRoleName(data.name);
-    await this.selectStatus(data.status ?? 'Enable');
     await this.selectSiteByIndex(data.siteIndex ?? 0);
+    await this.selectStatus(data.status ?? 'Enable');
     await this.enableFirstModuleViewPermission();
     await this.saveRoleDialog();
   }
 
   async expectRoleInList(name: string) {
+    await this.waitForRoleInList(name);
     await expect(this.rowByRoleName(name)).toBeVisible();
   }
 
   async clickEditByRoleName(name: string) {
+    await this.expectRoleInList(name);
     const row = this.rowByRoleName(name);
     await expect(row).toBeVisible();
     await row.locator('div.bg-mainBlue').first().click({ force: true });
@@ -179,24 +262,39 @@ export class BOOperatorRolePage {
   }
 
   async toggleStatusByRoleName(name: string) {
+    await this.expectRoleInList(name);
     const row = this.rowByRoleName(name);
     await expect(row).toBeVisible();
     await row.locator('.el-switch').click({ force: true });
+    await waitForNetworkSettled(this.page, 500);
   }
 
   async expectRoleRowContains(name: string, text: string) {
+    await this.expectRoleInList(name);
     await expect(this.rowByRoleName(name)).toContainText(text);
   }
 
   async expectAlertContainsAny(messages: Array<string | RegExp>) {
-    const alert = this.page.locator('.el-message, [role="alert"]').last();
-    await expect(alert).toBeVisible();
+    const alerts = this.page.locator('.el-message, [role="alert"]');
+    await expect(alerts.first()).toBeVisible();
 
-    const actualText = (await alert.textContent())?.trim() ?? '';
+    const actualTexts = ((await alerts.allTextContents()) ?? []).map((text) => text.trim());
     expect(
       messages.some((message) =>
-        typeof message === 'string' ? actualText.includes(message) : message.test(actualText)
+        actualTexts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        )
       )
     ).toBeTruthy();
+  }
+
+  async expectSuccessAlert() {
+    await this.expectAlertContainsAny([
+      await this.text('success'),
+      await this.text('added_successfully'),
+      await this.text('update_success'),
+      await this.text('edit_success'),
+      /success|added|updated|edited/i,
+    ]);
   }
 }

@@ -1,30 +1,20 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
-import { BOLoginPage } from '../../../pages/bo/LoginPage';
-import { ENV } from '../../../utils/env';
-import { BOI18n, useLocaleInContext } from '../../../utils/i18n';
+import { BOI18n } from '../../../utils/i18n';
+import { loginAsPrimaryUser, loginToBackOffice, withFreshLoginPage } from '../helpers/auth';
+import { buildAdminData } from '../helpers/data';
 
 test.describe('BO Admin Login Status', () => {
   test('enabled admin can login, updates last login info, and cannot login after being disabled', async ({
     page,
     browser,
   }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
-    const adminLoginPage = new BOLoginPage(page);
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-
-    const unique = Date.now();
-    const adminAccount = `auto${unique}`;
-    const adminName = 'AutoAdmin';
-    const adminPassword = 'Test12345';
-    const adminEmail = `autoadmin${unique}@test.com`;
+    const admin = buildAdminData();
 
     await test.step('1. Login as super admin', async () => {
-      await adminLoginPage.goto(ENV.SBO_URL);
-      await adminLoginPage.login(ENV.SBO_ACCOUNT, ENV.SBO_PASSWORD);
-
+      await loginAsPrimaryUser(page);
       await expect(page).not.toHaveURL(/login/i);
     });
 
@@ -36,66 +26,49 @@ test.describe('BO Admin Login Status', () => {
       await expect(page).toHaveURL(/\/admin\/add$/);
 
       await adminPage.createAdmin({
-        account: adminAccount,
-        name: adminName,
-        password: adminPassword,
-        email: adminEmail,
+        ...admin,
         status: 'Enable',
       });
     });
 
     await test.step('3. Verify enabled admin can login', async () => {
-      const loginContext = await browser.newContext();
-      await useLocaleInContext(loginContext, ENV.SBO_LOCALE);
-      const loginTab = await loginContext.newPage();
-      const loginPage = new BOLoginPage(loginTab);
-
-      await loginPage.goto(ENV.SBO_URL);
-      await loginPage.login(adminAccount, adminPassword);
-
-      await expect(loginTab).not.toHaveURL(/login/i);
-
-      await loginContext.close();
+      await withFreshLoginPage(browser, async (loginPage) => {
+        await loginToBackOffice(loginPage, admin.account, admin.password);
+        await expect(loginPage).not.toHaveURL(/login/i);
+      });
     });
 
     await test.step('4. Verify last login and last login IP are updated', async () => {
       await adminPage.gotoAdminList();
-      await adminPage.searchAdmin(adminAccount);
+      await adminPage.searchAdmin(admin.account);
 
-      await adminPage.expectAdminInList(adminAccount);
-      await adminPage.expectStatusSwitch(adminAccount, true);
-      await adminPage.expectLastLoginUpdated(adminAccount);
-      await adminPage.expectLastLoginIpUpdated(adminAccount);
+      await adminPage.expectAdminInList(admin.account);
+      await adminPage.expectStatusSwitch(admin.account, true);
+      await adminPage.expectLastLoginUpdated(admin.account);
+      await adminPage.expectLastLoginIpUpdated(admin.account);
     });
 
     await test.step('5. Change created admin status to Disable', async () => {
-      await adminPage.clickEditByAccount(adminAccount);
+      await adminPage.clickEditByAccount(admin.account);
       await expect(page).toHaveURL(/\/admin\/edit\?id=\d+$/);
 
       await adminPage.changeStatus('Disable');
     });
 
     await test.step('6. Verify disabled admin cannot login', async () => {
-      const loginContext = await browser.newContext();
-      await useLocaleInContext(loginContext, ENV.SBO_LOCALE);
-      const loginTab = await loginContext.newPage();
-      const loginPage = new BOLoginPage(loginTab);
-
-      await loginPage.goto(ENV.SBO_URL);
-      await loginPage.login(adminAccount, adminPassword);
-
-      await expect(loginTab).toHaveURL(/login/i);
-      await expect(loginTab.getByRole('alert')).toContainText(await i18n.error('000010'));
-
-      await loginContext.close();
+      await withFreshLoginPage(browser, async (loginPage) => {
+        await loginToBackOffice(loginPage, admin.account, admin.password);
+        await expect(loginPage).toHaveURL(/login/i);
+        await expect(loginPage.getByRole('alert')).toContainText(await i18n.error('000010'));
+      });
     });
 
     await test.step('7. Verify disabled admin still exists in list', async () => {
       await adminPage.gotoAdminList();
-      await adminPage.searchAdminWithStatus(adminAccount, 'Disable');
+      await adminPage.searchAdminWithStatus(admin.account, 'Disable');
 
-      await adminPage.expectAdminInList(adminAccount);
-      await adminPage.expectStatusSwitch(adminAccount, false);
+      await adminPage.expectAdminInList(admin.account);
+      await adminPage.expectStatusSwitch(admin.account, false);
     });
   });
 });

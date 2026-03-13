@@ -1,23 +1,13 @@
-import { test, expect } from '@playwright/test';
-import { ENV } from '../../../utils/env';
+import { test, expect } from './test';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildAdminData } from '../helpers/data';
 
 test.describe('BO Admin CRUD', () => {
   test('can create edit and search admin account', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
+    const admin = buildAdminData();
 
-    const unique = Date.now();
-    const adminAccount = `auto${unique}`;
-    const adminName = 'AutoAdmin';
-    const adminPassword = 'Test12345';
-    const adminEmail = `autoadmin${unique}@test.com`;
-
-    await test.step('1. Enter Admin List page', async () => {
-      await page.goto(`${ENV.SBO_URL}/dashboard`);
-      await adminPage.gotoAdminList();
+    await test.step('1. Enter Admin List page', async () => {      await adminPage.gotoAdminList();
       await expect(page).toHaveURL(/\/admin/);
     });
 
@@ -26,23 +16,20 @@ test.describe('BO Admin CRUD', () => {
       await expect(page).toHaveURL(/\/admin\/add$/);
 
       await adminPage.createAdmin({
-        account: adminAccount,
-        name: adminName,
-        password: adminPassword,
-        email: adminEmail,
+        ...admin,
         status: 'Enable',
       });
     });
 
     await test.step('3. Verify the created admin appears in list', async () => {
       await adminPage.gotoAdminList();
-      await adminPage.searchAdmin(adminAccount);
-      await adminPage.expectAdminInList(adminAccount);
-      await adminPage.expectStatusInList(adminAccount, 'Enable');
+      await adminPage.searchAdmin(admin.account);
+      await adminPage.expectAdminInList(admin.account);
+      await adminPage.expectStatusInList(admin.account, 'Enable');
     });
 
     await test.step('4. Click edit and enter edit page', async () => {
-      await adminPage.clickEditByAccount(adminAccount);
+      await adminPage.clickEditByAccount(admin.account);
       await expect(page).toHaveURL(/\/admin\/edit\?id=\d+$/);
     });
 
@@ -52,9 +39,9 @@ test.describe('BO Admin CRUD', () => {
 
     await test.step('6. Search again and verify created admin exists in list', async () => {
       await adminPage.gotoAdminList();
-      await adminPage.searchAdminWithStatus(adminAccount, 'Disable');
-      await adminPage.expectAdminInList(adminAccount);
-      await adminPage.expectStatusInList(adminAccount, 'Disable');
+      await adminPage.searchAdminWithStatus(admin.account, 'Disable');
+      await adminPage.expectAdminInList(admin.account);
+      await adminPage.expectStatusInList(admin.account, 'Disable');
     });
   });
 });

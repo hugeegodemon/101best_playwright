@@ -1,6 +1,28 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BOI18n } from '../../utils/i18n';
 
+export async function waitForUiSettled(page: Page, delay = 300) {
+  await page.waitForTimeout(delay);
+}
+
+export async function waitForNetworkSettled(page: Page, delay = 500) {
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  await waitForUiSettled(page, delay);
+}
+
+export async function waitForVisibleSelectOptions(page: Page) {
+  await expect(page.locator('.el-select-dropdown:visible .el-select-dropdown__item').first()).toBeVisible();
+}
+
+export async function waitForAlertOrIdle(page: Page, timeout = 800) {
+  const alerts = page.locator('.el-message, [role="alert"]');
+
+  await Promise.race([
+    alerts.first().waitFor({ state: 'visible', timeout }).catch(() => undefined),
+    page.waitForTimeout(timeout),
+  ]);
+}
+
 export class BOCommonPage {
   readonly page: Page;
   readonly userMenuButton: Locator;

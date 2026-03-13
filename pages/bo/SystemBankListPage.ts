@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 export class BOSystemBankListPage {
   readonly page: Page;
@@ -79,7 +80,7 @@ export class BOSystemBankListPage {
 
   async openRegionOptions() {
     await this.filterBox.locator('.el-select__wrapper').click({ force: true });
-    await this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item').first().waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
   }
 
   async regionOptions(): Promise<string[]> {
@@ -94,10 +95,12 @@ export class BOSystemBankListPage {
       .filter({ hasText: new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) })
       .first()
       .click({ force: true });
+    await waitForUiSettled(this.page);
   }
 
   async openTopRowEdit() {
     await this.topRow().locator('.bg-mainBlue.el-tooltip__trigger').first().click();
+    await waitForNetworkSettled(this.page);
   }
 
   async fillBankCode(value: string) {
@@ -112,16 +115,18 @@ export class BOSystemBankListPage {
     const combobox = this.filterBox.getByRole('combobox').first();
     await combobox.focus();
     await this.page.keyboard.press('ArrowDown');
-    await this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item').first().waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.selectVisibleOption(region);
   }
 
   async clickSearch() {
     await this.filterBox.locator('button.btn-primary').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async clickReset() {
     await this.filterBox.locator('button.btn-blue').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async filterFieldValues() {
@@ -133,6 +138,7 @@ export class BOSystemBankListPage {
 
   async clickAddBank() {
     await this.listBox.locator('button.btn-blue').first().click();
+    await waitForNetworkSettled(this.page);
   }
 
   async expectAddPageVisible() {
@@ -146,8 +152,7 @@ export class BOSystemBankListPage {
     const combobox = this.page.getByRole('combobox').nth(1);
     await combobox.focus();
     await this.page.keyboard.press('ArrowDown');
-    const options = this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
-    await options.first().waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.selectVisibleOption(region);
   }
 
@@ -167,10 +172,12 @@ export class BOSystemBankListPage {
 
   async submitForm() {
     await this.page.locator('button.btn-primary').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async cancelForm() {
     await this.page.locator('button.btn-blue').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async createBank(data: { region: string; bankCode: string; bankName: string }) {
@@ -274,5 +281,6 @@ export class BOSystemBankListPage {
       has: this.page.locator('td .cell', { hasText: bankCode }),
     }).first();
     await row.locator('.bg-mainBlue.el-tooltip__trigger').first().click();
+    await waitForNetworkSettled(this.page);
   }
 }

@@ -1,7 +1,7 @@
-import { expect, Page, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './test';
 import { BOSystemBankListPage } from '../../../pages/bo/SystemBankListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { uniqueUpperAlnum } from '../helpers/data';
 
 async function createBankAndOpenEdit(page: Page, systemBankPage: BOSystemBankListPage, suffix: string) {
   const bankCode = `E${suffix}`;
@@ -25,16 +25,12 @@ async function createBankAndOpenEdit(page: Page, systemBankPage: BOSystemBankLis
   return { bankCode, bankName };
 }
 
-test.describe('BO System Bank Edit Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
+test.describe('BO System Bank Edit Validation @serial', () => {
 
   test('edit system bank requires bank code and bank name', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
 
-    await createBankAndOpenEdit(page, systemBankPage, `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`);
+    await createBankAndOpenEdit(page, systemBankPage, uniqueUpperAlnum(8));
     await systemBankPage.fillFormBankCode('');
     await systemBankPage.fillFormBankName('');
     await systemBankPage.submitForm();
@@ -52,7 +48,7 @@ test.describe('BO System Bank Edit Validation', () => {
     await expect(systemBankPage.listRows().first()).toBeVisible();
     const duplicateBankCode = (await systemBankPage.topRowTexts())[0];
 
-    await createBankAndOpenEdit(page, systemBankPage, `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`);
+    await createBankAndOpenEdit(page, systemBankPage, uniqueUpperAlnum(8));
     await systemBankPage.fillFormBankCode(duplicateBankCode);
     await systemBankPage.submitForm();
 
@@ -62,7 +58,7 @@ test.describe('BO System Bank Edit Validation', () => {
 
   test('edit system bank can cancel without saving changes', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
-    const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const unique = uniqueUpperAlnum(8);
     const { bankCode, bankName } = await createBankAndOpenEdit(page, systemBankPage, unique);
 
     await systemBankPage.fillFormBankName(`${bankName} X`);

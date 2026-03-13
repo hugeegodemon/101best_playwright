@@ -1,15 +1,10 @@
-import { test, expect } from '@playwright/test';
-import { ENV } from '../../../utils/env';
+import { test, expect } from './test';
 import { BOSidebarPage } from '../../../pages/bo/SidebarPage';
-import { useLocaleInContext } from '../../../utils/i18n';
 
 test.describe('BO Sidebar Navbar', () => {
   test('main menus are visible', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const sidebar = new BOSidebarPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
 
     await sidebar.expectMenuVisible('admin_management');
     await sidebar.expectMenuVisible('operator');
@@ -19,11 +14,8 @@ test.describe('BO Sidebar Navbar', () => {
   });
 
   test('can expand and collapse Operator menu', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const sidebar = new BOSidebarPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
 
     await sidebar.expectMenuCollapsed('operator');
     await sidebar.expandMenu('operator');
@@ -34,11 +26,8 @@ test.describe('BO Sidebar Navbar', () => {
   });
 
   test('can navigate to Admin List', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const sidebar = new BOSidebarPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
 
     await sidebar.clickSubMenu('admin_management', 'admin_management_list');
 
@@ -46,11 +35,8 @@ test.describe('BO Sidebar Navbar', () => {
   });
 
   test('can expand Finance > Deposit and see Deposit Review', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const sidebar = new BOSidebarPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
 
     await sidebar.expandMenu('finance');
     await sidebar.expectSubMenuVisible('deposit');
@@ -60,11 +46,8 @@ test.describe('BO Sidebar Navbar', () => {
   });
 
   test('can navigate to Finance > Deposit > Deposit Review', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const sidebar = new BOSidebarPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
 
     await sidebar.clickThirdLevelMenu('finance', 'deposit', 'deposit_audit');
 

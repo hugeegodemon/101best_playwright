@@ -1,25 +1,13 @@
-import { test, expect } from '@playwright/test';
-import { ENV } from '../../../utils/env';
+import { test, expect } from './test';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
 import { BOOperatorPage } from '../../../pages/bo/OperatorPage';
-import { BOI18n, useLocaleInContext } from '../../../utils/i18n';
-
-function buildAdminData(seed: string | number) {
-  return {
-    account: `auto${seed}`,
-    name: 'AutoAdmin',
-    password: 'Test12345',
-    email: `autoadmin${seed}@test.com`,
-  };
-}
+import { BOI18n } from '../../../utils/i18n';
+import { buildAdminData, uniqueSeed } from '../helpers/data';
 
 test.describe('BO Admin Account', () => {
   test('create admin requires all mandatory fields', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const adminPage = new BOAdminPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await adminPage.gotoAddAdmin();
 
     await expect(page).toHaveURL(/\/admin\/add$/);
@@ -29,17 +17,12 @@ test.describe('BO Admin Account', () => {
   });
 
   test('cannot create duplicate admin account', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-
-    const unique = Date.now();
-    const adminAccount = `auto${unique}`;
-    const firstEmail = `autoadmin${unique}@test.com`;
-    const secondEmail = `autoadmin-duplicate${unique}@test.com`;
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const seed = uniqueSeed();
+    const adminAccount = `auto${seed}`;
+    const firstEmail = `autoadmin${seed}@test.com`;
+    const secondEmail = `autoadmin-duplicate${seed}@test.com`;
 
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
@@ -64,25 +47,21 @@ test.describe('BO Admin Account', () => {
   });
 
   test('cannot create admin account with existing operator account', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const operatorPage = new BOOperatorPage(page);
     const i18n = new BOI18n(page);
-    const unique = Date.now();
-    const sharedAccount = `op${unique}`;
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const seed = uniqueSeed();
+    const sharedAccount = `op${seed}`;
 
     await operatorPage.gotoAddOperator();
     await operatorPage.createOperator({
       account: sharedAccount,
       name: 'AutoOperator',
-      email: `operator${unique}@test.com`,
+      email: `operator${seed}@test.com`,
       password: 'Test12345',
       status: 'Enable',
     });
-    await operatorPage.expectAlertContainsAny([/success/i]);
+    await operatorPage.expectCreateSuccessAlert();
     await page.waitForTimeout(3200);
 
     await adminPage.gotoAddAdmin();
@@ -90,7 +69,7 @@ test.describe('BO Admin Account', () => {
       account: sharedAccount,
       name: 'AutoAdmin',
       password: 'Test12345',
-      email: `admin-cross-${unique}@test.com`,
+      email: `admin-cross-${seed}@test.com`,
       status: 'Enable',
     });
 
@@ -98,24 +77,17 @@ test.describe('BO Admin Account', () => {
   });
 
   test('create admin requires matching confirm password', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-
-    const unique = Date.now();
-    const adminAccount = `auto${unique}`;
-    const adminEmail = `autoadmin${unique}@test.com`;
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
 
     await adminPage.gotoAddAdmin();
     await adminPage.fillCreateAdminForm({
-      account: adminAccount,
-      name: 'AutoAdmin',
-      password: 'Test12345',
+      account: data.account,
+      name: data.name,
+      password: data.password,
       confirmPassword: 'Test54321',
-      email: adminEmail,
+      email: data.email,
       status: 'Enable',
     });
     await adminPage.save();
@@ -129,17 +101,13 @@ test.describe('BO Admin Account', () => {
   });
 
   test('create admin validates account format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await adminPage.gotoAddAdmin();
     await adminPage.fillCreateAdminForm({
       account: 'a123',
       name: 'AutoAdmin',
       password: 'Test12345',
-      email: `invalid-account-${Date.now()}@test.com`,
+      email: `invalid-account-${uniqueSeed()}@test.com`,
       status: 'Enable',
     });
     await adminPage.save();
@@ -148,18 +116,16 @@ test.describe('BO Admin Account', () => {
   });
 
   test('create admin validates name format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
+    const data = buildAdminData();
 
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await adminPage.gotoAddAdmin();
     await adminPage.fillCreateAdminForm({
-      account: `auto${Date.now()}`,
+      account: data.account,
       name: ' Admin1',
-      password: 'Test12345',
-      email: `invalid-name-${Date.now()}@test.com`,
+      password: data.password,
+      email: `invalid-name-${uniqueSeed()}@test.com`,
       status: 'Enable',
     });
     await adminPage.save();
@@ -172,17 +138,15 @@ test.describe('BO Admin Account', () => {
   });
 
   test('create admin validates email format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
+    const data = buildAdminData();
 
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await adminPage.gotoAddAdmin();
     await adminPage.fillCreateAdminForm({
-      account: `auto${Date.now()}`,
-      name: 'AutoAdmin',
-      password: 'Test12345',
+      account: data.account,
+      name: data.name,
+      password: data.password,
       email: 'invalid-email',
       status: 'Enable',
     });
@@ -196,12 +160,8 @@ test.describe('BO Admin Account', () => {
   });
 
   test('admin list can search by account and reset filters', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -215,16 +175,12 @@ test.describe('BO Admin Account', () => {
 
     await adminPage.clickReset();
     await adminPage.clickSearch();
-    await adminPage.expectNoAdminData();
+    await adminPage.expectKeywordCleared();
   });
 
   test('edit admin keeps account disabled and shows reset password action', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -239,12 +195,9 @@ test.describe('BO Admin Account', () => {
   });
 
   test('edit admin requires name and email', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const i18n = new BOI18n(page);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -257,18 +210,14 @@ test.describe('BO Admin Account', () => {
     await adminPage.clearEditField('e_mail');
     await adminPage.save();
 
-    await adminPage.expectFieldErrorContains('name', [/required/i]);
-    await adminPage.expectFieldErrorContains('e_mail', [/required/i]);
+    await adminPage.expectFieldErrorContains('name', [await i18n.t('required_field'), /required/i]);
+    await adminPage.expectFieldErrorContains('e_mail', [await i18n.t('required_field'), /required/i]);
   });
 
   test('edit admin validates email format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -288,12 +237,8 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password dialog can cancel without saving', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -309,12 +254,8 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password requires both password fields', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -331,13 +272,9 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password requires matching confirm password', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -362,12 +299,8 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password validates password format', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -388,13 +321,9 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password cannot reuse old password', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
     const i18n = new BOI18n(page);
-    const data = buildAdminData(Date.now());
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
+    const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -418,14 +347,9 @@ test.describe('BO Admin Account', () => {
   });
 
   test('reset password success shows success message', async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-
     const adminPage = new BOAdminPage(page);
-    const i18n = new BOI18n(page);
-    const data = buildAdminData(Date.now());
+    const data = buildAdminData();
     const newPassword = 'Newpass123';
-
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
       ...data,
@@ -441,12 +365,7 @@ test.describe('BO Admin Account', () => {
       confirmPassword: newPassword,
     });
     await adminPage.confirmResetPassword();
-
-    await adminPage.expectAlertContainsAny([
-      await i18n.t('success'),
-      await i18n.t('reset_password_success'),
-      await i18n.t('update_success'),
-    ]);
+    await adminPage.expectResetPasswordSuccessAlert();
     await adminPage.expectResetPasswordDialogHidden();
   });
 

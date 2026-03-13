@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled } from './CommonPage';
 
 export class BOSidebarPage {
   readonly page: Page;
@@ -48,6 +49,7 @@ export class BOSidebarPage {
 
     if (expanded === 'true') {
       await this.menuTitleByText(name).click();
+      await waitForUiSettled(this.page);
     }
 
     await this.expectMenuCollapsed(key);
@@ -60,6 +62,7 @@ export class BOSidebarPage {
 
     if (expanded !== 'true') {
       await this.menuTitleByText(name).click();
+      await waitForUiSettled(this.page);
     }
 
     await this.expectMenuExpanded(key);
@@ -80,6 +83,7 @@ export class BOSidebarPage {
 
     if (expanded !== 'true') {
       await childMenu.locator('.el-sub-menu__title').first().click();
+      await waitForUiSettled(this.page);
     }
 
     await expect(childMenu).toHaveAttribute('aria-expanded', 'true');
@@ -97,6 +101,7 @@ export class BOSidebarPage {
     }).first();
 
     await childMenu.click();
+    await waitForNetworkSettled(this.page);
   }
 
   async clickThirdLevelMenu(parentKey: string, childKey: string, grandChildKey: string) {
@@ -116,6 +121,7 @@ export class BOSidebarPage {
     }).first();
 
     await grandChildMenu.click();
+    await waitForNetworkSettled(this.page);
   }
 
   async expectSubMenuVisible(key: string) {

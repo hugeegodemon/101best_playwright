@@ -1,44 +1,25 @@
-import { test, expect } from '@playwright/test';
-import { ENV } from '../../../utils/env';
+import { test, expect } from './test';
 import { BOAdminPage } from '../../../pages/bo/AdminPage';
 import { BOCommonPage } from '../../../pages/bo/CommonPage';
 import { BOHeaderPage } from '../../../pages/bo/HeaderPage';
 import { BOLoginPage } from '../../../pages/bo/LoginPage';
 import { BOOperatorPage } from '../../../pages/bo/OperatorPage';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { BOI18n } from '../../../utils/i18n';
+import { loginAsAuthenticatedUser } from '../helpers/auth';
+import { buildAdminData, buildOperatorData } from '../helpers/data';
 
-function buildAdminData(seed: string | number) {
-  return {
-    account: `auto${seed}`,
-    name: 'AutoAdmin',
-    password: 'Test12345',
-    email: `autoadmin${seed}@test.com`,
-  };
-}
-
-function buildOperatorData(seed: string | number) {
-  return {
-    account: `op${seed}`,
-    name: 'AutoOperator',
-    password: 'Test12345',
-    email: `operator${seed}@test.com`,
-  };
-}
-
-test.describe('BO Reset Password Login', () => {
+test.describe('BO Reset Password Login @isolated-session', () => {
   test('admin can login with new password after reset', async ({ page }) => {
     test.setTimeout(90000);
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const loginPage = new BOLoginPage(page);
     const commonPage = new BOCommonPage(page);
     const headerPage = new BOHeaderPage(page);
     const adminPage = new BOAdminPage(page);
-    const data = buildAdminData(Date.now());
+    const data = buildAdminData();
     const newPassword = 'Newpass123';
 
-    await loginPage.goto(`${ENV.SBO_URL}/login`);
-    await loginPage.login(ENV.SBO_AUTH_ACCOUNT, ENV.SBO_AUTH_PASSWORD);
+    await loginAsAuthenticatedUser(page);
     await expect(page).not.toHaveURL(/login/i);
 
     await adminPage.gotoAddAdmin();
@@ -56,7 +37,7 @@ test.describe('BO Reset Password Login', () => {
       confirmPassword: newPassword,
     });
     await adminPage.confirmResetPassword();
-    await adminPage.expectAlertContainsAny([/success/i]);
+    await adminPage.expectResetPasswordSuccessAlert();
     await adminPage.expectResetPasswordDialogHidden();
 
     await headerPage.signOut();
@@ -67,17 +48,16 @@ test.describe('BO Reset Password Login', () => {
 
   test('operator can login with new password after reset', async ({ page }) => {
     test.setTimeout(90000);
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
 
     const loginPage = new BOLoginPage(page);
     const commonPage = new BOCommonPage(page);
     const headerPage = new BOHeaderPage(page);
     const operatorPage = new BOOperatorPage(page);
-    const data = buildOperatorData(Date.now());
+    const i18n = new BOI18n(page);
+    const data = buildOperatorData();
     const newPassword = 'Newpass123';
 
-    await loginPage.goto(`${ENV.SBO_URL}/login`);
-    await loginPage.login(ENV.SBO_AUTH_ACCOUNT, ENV.SBO_AUTH_PASSWORD);
+    await loginAsAuthenticatedUser(page);
     await expect(page).not.toHaveURL(/login/i);
 
     await operatorPage.gotoAddOperator();
@@ -85,7 +65,10 @@ test.describe('BO Reset Password Login', () => {
       ...data,
       status: 'Enable',
     });
-    await operatorPage.expectAlertContainsAny([/success/i]);
+    await operatorPage.expectAlertContainsAny([
+      await i18n.t('success'),
+      await i18n.t('added_successfully'),
+    ]);
     await page.waitForTimeout(3200);
 
     await operatorPage.gotoOperatorList();
@@ -99,7 +82,7 @@ test.describe('BO Reset Password Login', () => {
       confirmPassword: newPassword,
     });
     await operatorPage.confirmResetPassword();
-    await operatorPage.expectAlertContainsAny([/success/i]);
+    await operatorPage.expectResetPasswordSuccessAlert();
     await operatorPage.expectResetPasswordDialogHidden();
 
     await headerPage.signOut();

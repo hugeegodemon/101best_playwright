@@ -1,20 +1,30 @@
 # BO Test Cases
 
-Updated: 2026-03-12
+Updated: 2026-03-13
 
-## Test Projects
+## Execution Model
 
-- `bo-no-auth`
-  - `tests/bo/auth/*.spec.ts`
+- `tests/bo/global.setup.ts`
+  - prepares smoke authenticated storage state once before the run
+  - uses `SBO_SMOKE_ACCOUNT` / `SBO_SMOKE_PASSWORD`, or falls back to `SBO_ACCOUNT` / `SBO_PASSWORD`
+- `tests/bo/auth/*.spec.ts`
   - login / logout / password reset login flows
-- `bo-authenticated`
-  - `tests/bo/smoke/*.spec.ts`
+  - uses `tests/bo/auth/test.ts` for shared locale setup without authenticated storage state
+  - skips `global.setup.ts`
+  - `@isolated-session` auth specs run in a separate CI step after smoke
+- `tests/bo/smoke/*.spec.ts`
   - dashboard / navigation / CRUD / validation flows
-- `bo-setup`
-  - `tests/bo/auth.setup.ts`
-  - prepares storage state for `bo-authenticated`
-- `bo-logout`
-  - `tests/bo/auth/logout.spec.ts`
+  - uses `tests/bo/smoke/test.ts` for shared locale setup, authenticated storage state, and dashboard landing page
+  - `@isolated-session` smoke specs run in a separate CI step after shared smoke and serial smoke
+- `@serial` smoke specs
+  - run in a separate CI step with `--grep "@serial" --workers=1`
+  - current files: `site-crud.spec.ts`, `system-bank-list.spec.ts`, `system-bank-crud.spec.ts`, `system-bank-validation.spec.ts`, `system-bank-edit-validation.spec.ts`
+- `@isolated-session` auth specs
+  - run in a separate CI step with `--grep "@isolated-session" --workers=1`
+  - current files: `reset-password-login.spec.ts`
+- `@isolated-session` smoke specs
+  - run in a separate CI step with `--grep "@isolated-session" --workers=1`
+  - current files: `header.spec.ts` (`sign out action returns user to login page`)
 
 ## Auth
 
@@ -34,7 +44,7 @@ File: [tests/bo/auth/admin-login-status.spec.ts](/c:/Users/IE_Jason/playwright-b
 
 - `enabled admin can login, updates last login info, and cannot login after being disabled`
 
-File: [tests/bo/auth/reset-password-login.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/auth/reset-password-login.spec.ts)
+File: [tests/bo/auth/reset-password-login.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/auth/reset-password-login.spec.ts) `@isolated-session`
 
 - `admin can login with new password after reset`
 - `operator can login with new password after reset`
@@ -162,7 +172,7 @@ File: [tests/bo/smoke/site-list.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/
 - `site list page opens and can search existing site then reset filters`
 - `site list can show no data for unmatched filters and reset back to list`
 
-File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-crud.spec.ts)
+File: [tests/bo/smoke/site-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/site-crud.spec.ts) `@serial`
 
 - `can create site and show it at top of site list`
 - `can edit created site and keep hidden code disabled on edit page`
@@ -190,7 +200,7 @@ File: [tests/bo/smoke/game-provider.spec.ts](/c:/Users/IE_Jason/playwright-bo/te
 
 ### System Bank List
 
-File: [tests/bo/smoke/system-bank-list.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-list.spec.ts)
+File: [tests/bo/smoke/system-bank-list.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-list.spec.ts) `@serial`
 
 - `system bank list page opens with region and bank filters`
 - `system bank list shows bank rows with edit action`
@@ -204,13 +214,13 @@ File: [tests/bo/smoke/system-bank-list.spec.ts](/c:/Users/IE_Jason/playwright-bo
 
 ### System Bank CRUD
 
-File: [tests/bo/smoke/system-bank-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-crud.spec.ts)
+File: [tests/bo/smoke/system-bank-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-crud.spec.ts) `@serial`
 
 - `can create edit and search system bank`
 
 ### System Bank Validation
 
-File: [tests/bo/smoke/system-bank-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-validation.spec.ts)
+File: [tests/bo/smoke/system-bank-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-validation.spec.ts) `@serial`
 
 - `add system bank requires all mandatory fields`
 - `add system bank can cancel without saving`
@@ -218,7 +228,7 @@ File: [tests/bo/smoke/system-bank-validation.spec.ts](/c:/Users/IE_Jason/playwri
 
 ### System Bank Edit Validation
 
-File: [tests/bo/smoke/system-bank-edit-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-edit-validation.spec.ts)
+File: [tests/bo/smoke/system-bank-edit-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-edit-validation.spec.ts) `@serial`
 
 - `edit system bank requires bank code and bank name`
 - `edit system bank cannot use duplicate code in the same region`

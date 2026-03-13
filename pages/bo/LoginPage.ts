@@ -29,7 +29,7 @@ export class BOLoginPage {
     }
 
     await this.page.getByRole('button', { name: loginText }).click();
-    await this.confirmConcurrentSessionIfNeeded();
+    await this.confirmPostLoginDialogIfNeeded();
   }
 
   async expectDashboardVisible() {
@@ -43,12 +43,23 @@ export class BOLoginPage {
     await expect(this.page.getByRole('alert')).toContainText(message);
   }
 
-  private async confirmConcurrentSessionIfNeeded() {
-    const sessionDialog = this.page.locator('.el-message-box').filter({ hasText: /another session/i }).first();
+  private async confirmPostLoginDialogIfNeeded() {
+    const sessionDialog = this.page.locator('.el-message-box:visible').first();
 
     try {
       await sessionDialog.waitFor({ state: 'visible', timeout: 3000 });
     } catch {
+      return;
+    }
+
+    if (!(await this.page.url()).match(/\/login/i)) {
+      return;
+    }
+
+    const confirmButton = sessionDialog.locator('.el-button--primary').first();
+
+    if (await confirmButton.isVisible().catch(() => false)) {
+      await confirmButton.click();
       return;
     }
 

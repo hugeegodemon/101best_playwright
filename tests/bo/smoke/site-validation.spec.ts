@@ -1,16 +1,11 @@
 import path from 'path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test';
 import { BOSiteListPage } from '../../../pages/bo/SiteListPage';
-import { ENV } from '../../../utils/env';
-import { useLocaleInContext } from '../../../utils/i18n';
+import { buildSiteDraft } from '../helpers/data';
 
 const fixture = (name: string) => path.resolve(process.cwd(), 'tests/fixtures/images', name);
 
 test.describe('BO Site Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    await useLocaleInContext(page.context(), ENV.SBO_LOCALE);
-    await page.goto(`${ENV.SBO_URL}/dashboard`);
-  });
 
   test('add site requires mandatory basic fields before next step', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
@@ -84,13 +79,7 @@ test.describe('BO Site Validation', () => {
 
   test('game settings can open and go back without losing basic information', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
-    const suffix = String(Date.now()).slice(-8);
-    const data = {
-      siteName: `GS${suffix}`,
-      hiddenCode: `HC${suffix.slice(-6)}`,
-      frontendUrl: `www.gs${suffix}-front.com`,
-      backendUrl: `www.gs${suffix}-back.com`,
-    };
+    const data = buildSiteDraft('GS');
 
     await sitePage.gotoAddSite();
     await sitePage.expectAddSiteVisible();
@@ -108,16 +97,11 @@ test.describe('BO Site Validation', () => {
 
   test('game settings allows changing provider switch before successful create', async ({ page }) => {
     const sitePage = new BOSiteListPage(page);
-    const suffix = String(Date.now()).slice(-8);
+    const data = buildSiteDraft('GT');
 
     await sitePage.gotoAddSite();
     await sitePage.expectAddSiteVisible();
-    await sitePage.fillRequiredBasicFields({
-      siteName: `GT${suffix}`,
-      hiddenCode: `HC${suffix.slice(-6)}`,
-      frontendUrl: `www.gt${suffix}-front.com`,
-      backendUrl: `www.gt${suffix}-back.com`,
-    });
+    await sitePage.fillRequiredBasicFields(data);
     await sitePage.uploadSiteLogoH5(fixture('logo-h5.png'));
     await sitePage.uploadSiteLogoWeb(fixture('logo-web.png'));
     await sitePage.clickNextStep();

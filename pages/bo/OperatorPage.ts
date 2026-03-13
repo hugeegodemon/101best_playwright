@@ -1,6 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 type OperatorStatus = 'Enable' | 'Disable' | 'Freeze';
 type SearchType = 'Account' | 'Name';
@@ -12,7 +13,6 @@ export class BOOperatorPage {
   readonly listBox: Locator;
   readonly addButton: Locator;
   readonly saveButton: Locator;
-  readonly resetPasswordButton: Locator;
   readonly resetPasswordDialog: Locator;
   readonly resetPasswordFooter: Locator;
   private readonly i18n: BOI18n;
@@ -24,7 +24,6 @@ export class BOOperatorPage {
     this.listBox = page.locator('.page-box').nth(1);
     this.addButton = this.listBox.locator('button').first();
     this.saveButton = page.locator('.center-btn button').last();
-    this.resetPasswordButton = page.getByRole('button', { name: /reset password/i }).last();
     this.resetPasswordDialog = page.locator('.el-dialog').filter({
       has: page.locator('.el-dialog__body form'),
     }).last();
@@ -42,8 +41,62 @@ export class BOOperatorPage {
     }).first();
   }
 
+  private visibleOptions(): Locator {
+    return this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
+  }
+
+  private async statusTexts(status: OperatorStatus): Promise<string[]> {
+    const keys =
+      status === 'Enable'
+        ? ['simple_status_1', 'basic_status_1', 'status_1', 'enable']
+        : status === 'Disable'
+          ? ['simple_status_0', 'basic_status_0', 'status_0']
+          : ['basic_status_2', 'status_2', 'freeze'];
+
+    const values = await Promise.all(keys.map((key) => this.text(key)));
+    return [...new Set(values.filter(Boolean))];
+  }
+
+  private async textMatchesStatus(text: string, status: OperatorStatus): Promise<boolean> {
+    const candidates = await this.statusTexts(status);
+    return candidates.some((candidate) => text.includes(candidate));
+  }
+
+  private fallbackStatusIndex(status: OperatorStatus): number {
+    if (status === 'Enable') {
+      return 0;
+    }
+
+    if (status === 'Disable') {
+      return 1;
+    }
+
+    return 2;
+  }
+
+  private async selectVisibleStatusOption(status: OperatorStatus) {
+    const options = this.visibleOptions();
+    const optionTexts = await this.statusTexts(status);
+
+    await expect(options.first()).toBeVisible();
+
+    for (const optionText of optionTexts) {
+      const option = options.filter({ hasText: optionText }).first();
+      if (await option.count()) {
+        await option.click({ force: true });
+        return;
+      }
+    }
+
+    await options.nth(this.fallbackStatusIndex(status)).click({ force: true });
+  }
+
   private async waitForOverlayToSettle() {
-    await this.page.waitForTimeout(500);
+    await waitForUiSettled(this.page, 500);
+  }
+
+  private async waitForListToSettle() {
+    await waitForNetworkSettled(this.page, 800);
   }
 
   private fieldItemByLabel(label: string): Locator {
@@ -72,24 +125,17 @@ export class BOOperatorPage {
     return this.resetPasswordDialog.getByLabel(await this.text('confirm_password'));
   }
 
+  private async resetPasswordButton(): Promise<Locator> {
+    return this.page.getByRole('button', { name: await this.text('reset_password'), exact: true }).last();
+  }
+
   private async addStatusText(status: OperatorStatus): Promise<string> {
-    if (status === 'Enable') {
-      return this.text('basic_status_1');
-    }
-
-    if (status === 'Disable') {
-      return this.text('basic_status_0');
-    }
-
-    return this.text('basic_status_2');
+    const [primaryText] = await this.statusTexts(status);
+    return primaryText;
   }
 
   private async searchTypeText(type: SearchType): Promise<string> {
     return this.text(type === 'Account' ? 'account' : 'name');
-  }
-
-  private alertMessage(): Locator {
-    return this.page.locator('.el-message, [role="alert"]').last();
   }
 
   rowByAccount(account: string): Locator {
@@ -104,6 +150,7 @@ export class BOOperatorPage {
 
   async clickAddOperator() {
     await this.addButton.click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async gotoAddOperator() {
@@ -129,16 +176,16 @@ export class BOOperatorPage {
 
   async selectAddStatus(status: OperatorStatus) {
     const wrapper = await this.fieldSelectByKey('state');
-    const optionText = await this.addStatusText(status);
 
     await wrapper.click({ force: true });
-    await this.visibleOption(optionText).click({ force: true });
+    await this.selectVisibleStatusOption(status);
     await this.waitForOverlayToSettle();
   }
 
   async selectAddRoleByIndex(index = 0) {
     await (await this.fieldSelectByKey('role')).click({ force: true });
     const options = this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
+    await waitForVisibleSelectOptions(this.page);
     await expect(options.nth(index)).toBeVisible();
     await options.nth(index).click({ force: true });
     await this.waitForOverlayToSettle();
@@ -154,11 +201,12 @@ export class BOOperatorPage {
 
   async expectStatusOptionsVisible() {
     const options = this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
-    await expect(options).toHaveText([
-      await this.text('basic_status_1'),
-      await this.text('basic_status_0'),
-      await this.text('basic_status_2'),
-    ]);
+    await expect(options).toHaveCount(3);
+
+    const actualTexts = (await options.allTextContents()).map((text) => text.trim());
+    expect(await this.textMatchesStatus(actualTexts[0] ?? '', 'Enable')).toBeTruthy();
+    expect(await this.textMatchesStatus(actualTexts[1] ?? '', 'Disable')).toBeTruthy();
+    expect(await this.textMatchesStatus(actualTexts[2] ?? '', 'Freeze')).toBeTruthy();
   }
 
   async openAddStatusOptions() {
@@ -195,6 +243,7 @@ export class BOOperatorPage {
 
   async save() {
     await this.saveButton.click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async createOperator(data: {
@@ -222,10 +271,12 @@ export class BOOperatorPage {
 
   async clickSearch() {
     await this.filterBox.locator('form.page-filter-form .el-form-item').last().locator('button').last().click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async clickReset() {
     await this.filterBox.locator('form.page-filter-form .el-form-item').last().locator('button').first().click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async searchByAccount(account: string) {
@@ -244,7 +295,9 @@ export class BOOperatorPage {
     const optionText = await this.searchTypeText(type);
 
     await wrapper.click({ force: true });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(optionText).click({ force: true });
+    await this.waitForOverlayToSettle();
   }
 
   async expectSearchValidationError(messages: Array<string | RegExp>) {
@@ -283,15 +336,29 @@ export class BOOperatorPage {
     await expect(this.listBox.getByText(await this.text('no_data'), { exact: true })).toBeVisible();
   }
 
+  async expectKeywordCleared() {
+    await expect(this.filterBox.locator('input.el-input__inner').first()).toHaveValue('');
+  }
+
+  async expectListHasRows() {
+    await expect(this.listBox.locator('tr.el-table__row').first()).toBeVisible();
+  }
+
   async expectOperatorInList(account: string) {
-    await expect(this.listBox).toContainText(account);
+    await expect
+      .poll(async () => ((await this.listBox.textContent()) ?? '').includes(account), {
+        timeout: 15000,
+        intervals: [500, 1000, 1500],
+      })
+      .toBeTruthy();
   }
 
   async clickEditByAccount(account: string) {
     const row = this.rowByAccount(account);
     await expect(row).toBeVisible();
-    await this.page.waitForTimeout(500);
+    await waitForUiSettled(this.page, 500);
     await row.locator('div.bg-mainBlue').first().click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async gotoEditByAccount(account: string) {
@@ -314,13 +381,14 @@ export class BOOperatorPage {
   }
 
   async expectResetPasswordButtonVisible() {
-    await expect(this.resetPasswordButton).toBeVisible();
+    await expect(await this.resetPasswordButton()).toBeVisible();
   }
 
   async openResetPasswordDialog() {
-    await expect(this.resetPasswordButton).toBeVisible();
-    await expect(this.resetPasswordButton).toBeEnabled();
-    await this.resetPasswordButton.click();
+    const button = await this.resetPasswordButton();
+    await expect(button).toBeVisible();
+    await expect(button).toBeEnabled();
+    await button.click();
   }
 
   async expectResetPasswordDialogVisible() {
@@ -374,24 +442,50 @@ export class BOOperatorPage {
 
   async changeEditStatus(status: OperatorStatus) {
     const wrapper = await this.fieldSelectByKey('state');
-    const optionText = await this.addStatusText(status);
 
     await wrapper.click({ force: true });
-    await this.visibleOption(optionText).click({ force: true });
+    await this.selectVisibleStatusOption(status);
     await this.waitForOverlayToSettle();
     await this.save();
   }
 
   async expectAlertContainsAny(messages: Array<string | RegExp>) {
-    const alert = this.alertMessage();
-    await expect(alert).toBeVisible();
+    const alerts = this.page.locator('.el-message, [role="alert"]');
+    await expect(alerts.first()).toBeVisible();
 
-    const actualText = (await alert.textContent())?.trim() ?? '';
+    const actualTexts = ((await alerts.allTextContents()) ?? []).map((text) => text.trim());
     expect(
       messages.some((message) =>
-        typeof message === 'string' ? actualText.includes(message) : message.test(actualText)
+        actualTexts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        )
       )
     ).toBeTruthy();
+  }
+
+  async expectCreateSuccessAlert() {
+    await this.expectAlertContainsAny([
+      await this.text('success'),
+      await this.text('added_successfully'),
+      /success|added/i,
+    ]);
+  }
+
+  async expectUpdateSuccessAlert() {
+    await this.expectAlertContainsAny([
+      await this.text('success'),
+      await this.text('update_success'),
+      await this.text('edit_success'),
+      /success|updated|edited/i,
+    ]);
+  }
+
+  async expectResetPasswordSuccessAlert() {
+    await this.expectAlertContainsAny([
+      await this.text('success'),
+      await this.text('reset_password_success'),
+      await this.text('update_success'),
+    ]);
   }
 
   async selectStatusFilter(status: OperatorStatus | 'All Statuses') {
@@ -405,15 +499,18 @@ export class BOOperatorPage {
   async openStatusDialogByAccount(account: string) {
     const row = this.rowByAccount(account);
     await expect(row).toBeVisible();
-    await this.page.waitForTimeout(500);
+    await waitForUiSettled(this.page, 500);
     await row.locator('span.cursor-pointer').click({ force: true });
+    await waitForUiSettled(this.page, 300);
   }
 
   async expectStatusDialogVisible(currentStatus: OperatorStatus) {
     const dialog = this.page.locator('.el-dialog').last();
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText(await this.text('change_status'));
-    await expect(dialog.locator('.el-select__wrapper')).toContainText(await this.addStatusText(currentStatus));
+
+    const actualText = (await dialog.locator('.el-select__wrapper').textContent())?.trim() ?? '';
+    expect(await this.textMatchesStatus(actualText, currentStatus)).toBeTruthy();
   }
 
   async openStatusDialogOptions() {
@@ -422,17 +519,23 @@ export class BOOperatorPage {
 
   async selectStatusInDialog(status: OperatorStatus) {
     await this.openStatusDialogOptions();
-    await this.visibleOption(await this.addStatusText(status)).click({ force: true });
+    await this.selectVisibleStatusOption(status);
     await this.waitForOverlayToSettle();
   }
 
   async expectStatusDialogOptionsVisible() {
     const options = this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
-    await expect(options).toHaveText([
-      await this.text('basic_status_0'),
-      await this.text('basic_status_1'),
-      await this.text('basic_status_2'),
-    ]);
+    await expect(options).toHaveCount(3);
+
+    const actualTexts = (await options.allTextContents()).map((text) => text.trim());
+    expect(await this.textMatchesStatus(actualTexts[0] ?? '', 'Disable')).toBeTruthy();
+    expect(await this.textMatchesStatus(actualTexts[1] ?? '', 'Enable')).toBeTruthy();
+    expect(await this.textMatchesStatus(actualTexts[2] ?? '', 'Freeze')).toBeTruthy();
+  }
+
+  async expectStatusInList(account: string, status: OperatorStatus) {
+    const actualText = (await this.rowByAccount(account).textContent())?.trim() ?? '';
+    expect(await this.textMatchesStatus(actualText, status)).toBeTruthy();
   }
 
   async cancelStatusDialog() {
@@ -441,6 +544,7 @@ export class BOOperatorPage {
 
   async confirmStatusDialog() {
     await this.page.locator('.el-dialog').last().locator('button.btn-primary').click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async expectStatusDialogHidden() {

@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForAlertOrIdle, waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 export type SiteTemplate = 'Layout 1' | 'Layout 2';
 
@@ -146,22 +147,22 @@ export class BOSiteListPage {
     const wrapper = await this.fieldSelectByLabel(label, index);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.visibleOption(text).waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(text).click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForUiSettled(this.page);
   }
 
   private async setSelect(wrapperIndex: number, text: string) {
     const wrapper = this.page.locator('.el-select__wrapper').nth(wrapperIndex);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.visibleOption(text).waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(text).click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForUiSettled(this.page);
   }
 
   private async waitForUploadToSettle() {
-    await this.page.waitForTimeout(1500);
+    await waitForAlertOrIdle(this.page, 800);
   }
 
   async gotoSiteList() {
@@ -179,6 +180,7 @@ export class BOSiteListPage {
   async clickAddSite() {
     const addButton = this.listActionButton('add');
     await addButton.click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async gotoAddSite() {
@@ -193,7 +195,7 @@ export class BOSiteListPage {
     await expect(await this.inputByKey('hide_code')).toBeVisible();
     await expect(this.urlInput(0)).toBeVisible();
     await expect(this.urlInput(1)).toBeVisible();
-    await this.page.waitForTimeout(2000);
+    await waitForUiSettled(this.page, 1200);
     await expect(this.page.locator('input[type=file]').first()).toBeAttached();
   }
 
@@ -262,7 +264,7 @@ export class BOSiteListPage {
 
   async clickNextStep() {
     await (await this.actionButton('next_step')).click({ force: true });
-    await this.page.waitForTimeout(1000);
+    await waitForNetworkSettled(this.page, 1000);
   }
 
   async expectGameSettingsVisible() {
@@ -271,7 +273,7 @@ export class BOSiteListPage {
 
   async clickPreviousStep() {
     await (await this.actionButton('prev_step')).click({ force: true });
-    await this.page.waitForTimeout(800);
+    await waitForNetworkSettled(this.page, 800);
   }
 
   async expectBasicInfoValues(data: {
@@ -324,14 +326,14 @@ export class BOSiteListPage {
     const wrapper = this.page.locator('.el-select__wrapper').nth(wrapperIndex);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForVisibleSelectOptions(this.page);
   }
 
   private async setSelectOpenByLabel(label: string, index = 0) {
     const wrapper = await this.fieldSelectByLabel(label, index);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForVisibleSelectOptions(this.page);
   }
 
   async uploadSiteLogoWeb(filePath: string) {
@@ -428,7 +430,7 @@ export class BOSiteListPage {
 
   async closeSelectDropdown() {
     await this.page.keyboard.press('Escape');
-    await this.page.waitForTimeout(200);
+    await waitForUiSettled(this.page, 200);
   }
 
   async completeMinimalCreateFlow(data: {
@@ -454,7 +456,7 @@ export class BOSiteListPage {
   }
 
   async waitForToastToDisappear() {
-    await this.page.waitForTimeout(3200);
+    await waitForUiSettled(this.page, 3200);
   }
 
   listRowBySiteName(siteName: string): Locator {
@@ -497,14 +499,14 @@ export class BOSiteListPage {
     if (await editButton.count()) {
       await editButton.hover();
       await editButton.click();
-      await this.page.waitForTimeout(500);
+      await waitForNetworkSettled(this.page, 500);
       return;
     }
 
     const fallbackButton = row.locator('td').last().locator('.cell > div > div').first();
     await fallbackButton.hover();
     await fallbackButton.click();
-    await this.page.waitForTimeout(500);
+    await waitForNetworkSettled(this.page, 500);
   }
 
   async expectEditSiteVisible() {
@@ -579,6 +581,7 @@ export class BOSiteListPage {
 
   async saveEdit() {
     await (await this.actionButton('enter')).click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async editFieldValues() {
@@ -600,10 +603,12 @@ export class BOSiteListPage {
 
   async clickSearch() {
     await this.filterButton('search').click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async clickReset() {
     await this.filterButton('reset').click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async searchSite(siteName: string) {
@@ -615,9 +620,9 @@ export class BOSiteListPage {
     const wrapper = this.filterBox.locator('.el-select__wrapper').first();
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.visibleOption(region).waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(region).click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForUiSettled(this.page);
   }
 
   async selectFilterStatus(status: 'Enable' | 'Disable') {
@@ -625,9 +630,9 @@ export class BOSiteListPage {
     const optionText = await this.filterStatusText(status);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.visibleOption(optionText).waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(optionText).click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForUiSettled(this.page);
   }
 
   async expectNoData() {

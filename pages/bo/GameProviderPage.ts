@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForAlertOrIdle, waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 export class BOGameProviderPage {
   readonly page: Page;
@@ -83,9 +84,9 @@ export class BOGameProviderPage {
     const wrapper = this.filterBox.locator('.el-select__wrapper').nth(index);
     await wrapper.scrollIntoViewIfNeeded();
     await wrapper.click({ force: true });
-    await this.visibleOption(optionText).waitFor({ state: 'visible' });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(optionText).click({ force: true });
-    await this.page.waitForTimeout(300);
+    await waitForUiSettled(this.page);
   }
 
   async providerText(provider: string): Promise<string> {
@@ -117,10 +118,12 @@ export class BOGameProviderPage {
 
   async clickSearch() {
     await this.filterButton('search').click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async clickReset() {
     await this.filterButton('reset').click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async selectProvider(providerName: string) {
@@ -158,13 +161,13 @@ export class BOGameProviderPage {
   async openFirstRowGameList() {
     const firstAction = this.providerListRows().first().locator('.bg-mainBlue.el-tooltip__trigger').first();
     await firstAction.click();
-    await this.page.waitForTimeout(1000);
+    await waitForNetworkSettled(this.page, 1000);
   }
 
   async openRowGameList(providerName: string) {
     const firstAction = this.rowByProvider(providerName).locator('.bg-mainBlue.el-tooltip__trigger').first();
     await firstAction.click();
-    await this.page.waitForTimeout(1000);
+    await waitForNetworkSettled(this.page, 1000);
   }
 
   async expectProviderGameListVisible(providerName: string, typeText: string) {
@@ -176,7 +179,7 @@ export class BOGameProviderPage {
 
   async clickBackToProviders() {
     await this.page.getByText(await this.text('back_to_providers'), { exact: true }).click();
-    await this.page.waitForTimeout(800);
+    await waitForNetworkSettled(this.page, 800);
   }
 
   async expectReturnedToProviderList() {
@@ -186,7 +189,7 @@ export class BOGameProviderPage {
 
   async openFirstRowApiDialog() {
     await this.providerListRows().first().locator('.bg-mainBlue.el-tooltip__trigger').nth(1).click();
-    await this.page.waitForTimeout(800);
+    await waitForUiSettled(this.page, 800);
   }
 
   async expectApiDialogVisible(providerName: string) {
@@ -205,19 +208,22 @@ export class BOGameProviderPage {
 
   async confirmApiDialog() {
     await this.addGameDialog().locator('.el-dialog__footer button.btn-primary').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async selectApiSite(siteName: string) {
     const dialog = this.addGameDialog();
     await dialog.locator('.el-select__wrapper').click({ force: true });
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOption(siteName).click({ force: true });
-    await this.page.waitForTimeout(600);
+    await waitForUiSettled(this.page, 600);
   }
 
   async selectFirstVisibleApiSiteExcluding(forbiddenSite: string): Promise<string> {
     const dialog = this.addGameDialog();
     await dialog.locator('.el-select__wrapper').click({ force: true });
     const options = this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
+    await waitForVisibleSelectOptions(this.page);
     const firstOption = options.first();
     const selected = (await firstOption.innerText()).trim();
     if (!selected || selected === forbiddenSite) {
@@ -225,7 +231,7 @@ export class BOGameProviderPage {
     }
 
     await firstOption.click({ force: true });
-    await this.page.waitForTimeout(600);
+    await waitForUiSettled(this.page, 600);
     return selected;
   }
 
@@ -243,7 +249,7 @@ export class BOGameProviderPage {
 
   async clickAddGame() {
     await this.detailBox.locator('button.btn-blue').last().click();
-    await this.page.waitForTimeout(800);
+    await waitForUiSettled(this.page, 800);
   }
 
   async expectAddGameDialogVisible() {
@@ -267,6 +273,7 @@ export class BOGameProviderPage {
   async confirmAddGameDialog() {
     const dialog = this.addGameDialog();
     await dialog.locator('.el-dialog__footer button.btn-primary').click();
+    await waitForNetworkSettled(this.page);
   }
 
   async expectAddGameRequiredErrors() {
@@ -287,6 +294,7 @@ export class BOGameProviderPage {
 
   async uploadGameImage(filePath: string) {
     await this.addGameDialog().locator('input[type=file]').setInputFiles(filePath);
+    await waitForAlertOrIdle(this.page, 800);
   }
 
   async visibleGameParameterLabels(): Promise<string[]> {
@@ -323,7 +331,7 @@ export class BOGameProviderPage {
 
   async goToGameListPage(pageNumber: number) {
     await this.gameListPager().locator(`.el-pager li[aria-label="page ${pageNumber}"]`).click();
-    await this.page.waitForTimeout(800);
+    await waitForNetworkSettled(this.page, 800);
   }
 
   async lastGameListPageNumber(): Promise<number> {
@@ -363,7 +371,7 @@ export class BOGameProviderPage {
 
   async openGameEditByName(gameName: string) {
     await this.gameRowByName(gameName).locator('.bg-mainBlue.el-tooltip__trigger').first().click();
-    await this.page.waitForTimeout(800);
+    await waitForUiSettled(this.page, 800);
   }
 
   async expectEditGameDialogVisible() {

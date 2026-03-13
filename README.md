@@ -19,13 +19,15 @@
 |-- test-results/
 |-- tests/
 |   |-- bo/
-|   |   |-- auth.setup.ts
-|   |   `-- auth/
+|   |   |-- global.setup.ts
+|   |   |-- auth/
 |   |       |-- login.spec.ts
-|   |       `-- logout.spec.ts
+|   |       |-- logout.spec.ts
+|   |       `-- test.ts
+|   |   `-- smoke/
+|   |       |-- dashboard.spec.ts
+|   |       `-- test.ts
 |   |-- regression/
-|   `-- smoke/
-|       `-- dashboard.spec.ts
 `-- utils/
     `-- env.ts
 ```
@@ -59,14 +61,17 @@
 
    ```ini
    SBO_URL=https://your-bo-url.com
-   SBO_LOGIN_ACCOUNT=your_login_test_account
-   SBO_LOGIN_PASSWORD=your_login_test_password
+   SBO_ACCOUNT=your_login_test_account
+   SBO_PASSWORD=your_login_test_password
    SBO_AUTH_ACCOUNT=your_authenticated_test_account
    SBO_AUTH_PASSWORD=your_authenticated_test_password
+   SBO_SMOKE_ACCOUNT=your_smoke_test_account
+   SBO_SMOKE_PASSWORD=your_smoke_test_password
    SBO_LOCALE=en-us
    ```
 
    `SBO_LOCALE` is optional. If omitted, tests will not prewrite `localStorage.language` and will instead follow the language value the site sets for itself.
+   `SBO_SMOKE_ACCOUNT` and `SBO_SMOKE_PASSWORD` are recommended for smoke/global setup isolation. If omitted, smoke falls back to `SBO_ACCOUNT` and `SBO_PASSWORD`.
 
 ---
 
@@ -75,7 +80,7 @@
 - **Run all tests**
 
   ```bash
-  npx playwright test
+  npm test
   ```
 
 - **Run a specific folder/file**
@@ -84,11 +89,21 @@
   npx playwright test tests/bo/auth/login.spec.ts
   ```
 
-- **Run specific project**
+- **Run auth or smoke suites**
 
   ```bash
-  npx playwright test --project=bo-no-auth
-  npx playwright test --project=bo-authenticated
+  npx playwright test tests/bo/auth --grep-invert "@isolated-session" --workers=1
+  npx playwright test tests/bo/auth --grep "@isolated-session" --workers=1
+  npx playwright test tests/bo/smoke --grep-invert "@serial|@isolated-session"
+  npx playwright test tests/bo/smoke --grep "@serial" --grep-invert "@isolated-session" --workers=1
+  npx playwright test tests/bo/smoke --grep "@isolated-session" --workers=1
+  ```
+
+- **Run smoke in parallel-safe and single-worker batches**
+
+  ```bash
+  npx playwright test tests/bo/smoke --grep-invert "@serial"
+  npx playwright test tests/bo/smoke --grep "@serial" --workers=1
   ```
 
 - **Run with visible browser**
@@ -111,20 +126,55 @@ Results and reports are output to `test-results/` and `playwright-report/`.
 
 ```json
 "scripts": {
-  "test": "npx playwright test",
-  "report": "npx playwright show-report"
+  "test": "npm run test:bo:auth && npm run test:bo:smoke && npm run test:bo:serial && npm run test:bo:smoke:session && npm run test:bo:auth:session",
+  "test:bo:auth": "playwright test tests/bo/auth --grep-invert \"@isolated-session\" --workers=1",
+  "test:bo:auth:session": "playwright test tests/bo/auth --grep \"@isolated-session\" --workers=1",
+  "test:bo:smoke": "playwright test tests/bo/smoke --grep-invert \"@serial|@isolated-session\"",
+  "test:bo:serial": "playwright test tests/bo/smoke --grep \"@serial\" --grep-invert \"@isolated-session\" --workers=1",
+  "test:bo:smoke:session": "playwright test tests/bo/smoke --grep \"@isolated-session\" --workers=1",
+  "report": "playwright show-report"
 }
 ```
 
-Add these to `package.json` as needed.
+These are the CI-friendly commands now used in `package.json`.
+Auth commands set `PW_SKIP_BO_GLOBAL_SETUP=1`, so they do not prepare or consume the shared smoke storage state.
+
+## CI Split
+
+Recommended CI order:
+
+```bash
+npx playwright test tests/bo/auth --grep-invert "@isolated-session" --workers=1
+npx playwright test tests/bo/smoke --grep-invert "@serial|@isolated-session"
+npx playwright test tests/bo/smoke --grep "@serial" --grep-invert "@isolated-session" --workers=1
+npx playwright test tests/bo/smoke --grep "@isolated-session" --workers=1
+npx playwright test tests/bo/auth --grep "@isolated-session" --workers=1
+```
+
+Current `@serial` specs:
+
+- `tests/bo/smoke/site-crud.spec.ts`
+- `tests/bo/smoke/system-bank-list.spec.ts`
+- `tests/bo/smoke/system-bank-crud.spec.ts`
+- `tests/bo/smoke/system-bank-validation.spec.ts`
+- `tests/bo/smoke/system-bank-edit-validation.spec.ts`
+
+Current `@isolated-session` specs:
+
+- `tests/bo/smoke/header.spec.ts` (`sign out action returns user to login page`)
+- `tests/bo/auth/reset-password-login.spec.ts`
 
 ---
 
 ## Development Tips
 
 - Use Page Objects (`pages/bo/*.ts`) to encapsulate repeated operations.
-- Set up common preconditions (e.g. login) in `tests/bo/auth.setup.ts`.
-- Organize additional folders by feature or test type (`regression/`, `smoke/`).
+- Keep cross-suite smoke login bootstrap in `tests/bo/global.setup.ts`.
+- Auth commands skip `tests/bo/global.setup.ts`; only smoke-related commands prepare the shared smoke session.
+- Use per-suite fixtures in `tests/bo/auth/test.ts` and `tests/bo/smoke/test.ts` for defaults like locale, storage state, and landing page.
+- Put reusable BO test helpers such as login flows and test-data builders in `tests/bo/helpers/`.
+- For specs that cannot safely share environment state, tag them with `@serial` and run them in a separate CI step with `--workers=1` instead of adding a dedicated project.
+- For auth or smoke specs that intentionally log out, re-login, or otherwise invalidate shared sessions, tag them with `@isolated-session` and run them after the shared-session batches.
 
 ---
 

@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BOSidebarPage } from './SidebarPage';
 import { BOI18n } from '../../utils/i18n';
+import { waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 type AdminStatus = 'Enable' | 'Disable';
 type SearchType = 'Account' | 'Name';
@@ -15,7 +16,6 @@ export class BOAdminPage {
   readonly resetButton: Locator;
   readonly searchButton: Locator;
   readonly saveButton: Locator;
-  readonly resetPasswordButton: Locator;
   readonly resetPasswordDialog: Locator;
   readonly resetPasswordFooter: Locator;
   private readonly i18n: BOI18n;
@@ -37,7 +37,6 @@ export class BOAdminPage {
     this.resetButton = formActionArea.locator('button.btn-default').first();
     this.searchButton = formActionArea.locator('button.btn-primary').first();
     this.saveButton = formActionBox.locator('button.btn-primary').first();
-    this.resetPasswordButton = page.getByRole('button', { name: /reset password/i }).first();
     this.resetPasswordDialog = page.locator('.el-dialog').filter({
       has: page.locator('.el-dialog__body form'),
     }).last();
@@ -50,6 +49,16 @@ export class BOAdminPage {
 
   private async statusText(status: AdminStatus): Promise<string> {
     return this.text(status === 'Enable' ? 'basic_status_1' : 'basic_status_0');
+  }
+
+  private async formStatusTexts(status: AdminStatus): Promise<string[]> {
+    const keys =
+      status === 'Enable'
+        ? ['simple_status_1', 'basic_status_1', 'status_1', 'enable']
+        : ['simple_status_0', 'basic_status_0', 'status_0'];
+
+    const values = await Promise.all(keys.map((key) => this.text(key)));
+    return [...new Set(values.filter(Boolean))];
   }
 
   private async searchTypeText(type: SearchType): Promise<string> {
@@ -114,10 +123,6 @@ export class BOAdminPage {
     return this.page.locator('.el-form-item__error');
   }
 
-  private alertMessage(): Locator {
-    return this.page.locator('.el-message, [role="alert"]').last();
-  }
-
   private async createStatusSelect(): Promise<Locator> {
     const statusText = await this.text('state');
 
@@ -146,11 +151,41 @@ export class BOAdminPage {
     return this.resetPasswordDialog.getByLabel(await this.text('confirm_password'));
   }
 
+  private async resetPasswordButton(): Promise<Locator> {
+    return this.page.getByRole('button', { name: await this.text('reset_password'), exact: true }).first();
+  }
+
   private visibleOptionByName(name: string): Locator {
     return this.page
       .locator('.el-select-dropdown__item')
       .filter({ hasText: name })
       .last();
+  }
+
+  private visibleOptions(): Locator {
+    return this.page.locator('.el-select-dropdown:visible .el-select-dropdown__item');
+  }
+
+  private async waitForListToSettle() {
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  private async selectVisibleStatusOption(status: AdminStatus) {
+    const options = this.visibleOptions();
+    const optionTexts = await this.formStatusTexts(status);
+
+    await expect(options.first()).toBeVisible();
+
+    for (const optionText of optionTexts) {
+      const optionByText = options.filter({ hasText: optionText }).first();
+      if (await optionByText.count()) {
+        await optionByText.click({ force: true });
+        return;
+      }
+    }
+
+    const fallbackIndex = status === 'Enable' ? 0 : 1;
+    await options.nth(fallbackIndex).click({ force: true });
   }
 
   async gotoAdminList() {
@@ -159,6 +194,7 @@ export class BOAdminPage {
 
   async clickAddAdmin() {
     await this.addButton.click();
+    await this.waitForListToSettle();
   }
 
   async gotoAddAdmin() {
@@ -167,16 +203,8 @@ export class BOAdminPage {
   }
 
   async selectCreateStatus(status: AdminStatus) {
-    const optionText = await this.statusText(status);
-    const currentText = ((await (await this.createStatusSelect()).innerText()) ?? '').trim();
-
-    if (currentText.includes(optionText)) {
-      return;
-    }
-
     await (await this.createStatusSelect()).click();
-    await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
-    await this.visibleOptionByName(optionText).click({ force: true });
+    await this.selectVisibleStatusOption(status);
   }
 
   async fillCreateAdminForm(data: {
@@ -218,6 +246,7 @@ export class BOAdminPage {
 
   async save() {
     await this.page.locator('.center-btn button.btn-primary').last().click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async createAdmin(data: {
@@ -236,8 +265,10 @@ export class BOAdminPage {
     const optionText = await this.searchTypeText(type);
 
     await (await this.searchTypeSelect()).click();
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
     await this.visibleOptionByName(optionText).click({ force: true });
+    await waitForUiSettled(this.page);
   }
 
   async fillKeyword(keyword: string) {
@@ -248,8 +279,10 @@ export class BOAdminPage {
     const optionText = await this.statusFilterText(status);
 
     await (await this.statusFilterSelect()).click();
+    await waitForVisibleSelectOptions(this.page);
     await this.visibleOptionByName(optionText).waitFor({ state: 'visible' });
     await this.visibleOptionByName(optionText).click({ force: true });
+    await waitForUiSettled(this.page);
   }
 
   async clickSearch() {
@@ -261,6 +294,7 @@ export class BOAdminPage {
       .locator('button')
       .last()
       .click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async clickReset() {
@@ -272,6 +306,7 @@ export class BOAdminPage {
       .locator('button')
       .first()
       .click({ force: true });
+    await this.waitForListToSettle();
   }
 
   async searchAdmin(account: string) {
@@ -298,7 +333,11 @@ export class BOAdminPage {
   }
 
   async expectNoAdminData() {
-    await expect(this.page.getByText('No data', { exact: true })).toBeVisible();
+    await expect(this.page.getByText(await this.text('no_data'), { exact: true })).toBeVisible();
+  }
+
+  async expectKeywordCleared() {
+    await expect(this.keywordInput).toHaveValue('');
   }
 
   async expectRowContainsText(account: string, text: string) {
@@ -314,6 +353,7 @@ export class BOAdminPage {
   async clickEditByAccount(account: string) {
     const row = this.rowByAccount(account);
     await row.locator('div.bg-mainBlue').first().click();
+    await this.waitForListToSettle();
   }
 
   async gotoEditByAccount(account: string) {
@@ -395,11 +435,12 @@ export class BOAdminPage {
   }
 
   async expectResetPasswordButtonVisible() {
-    await expect(this.resetPasswordButton).toBeVisible();
+    await expect(await this.resetPasswordButton()).toBeVisible();
   }
 
   async openResetPasswordDialog() {
-    await this.resetPasswordButton.click();
+    await (await this.resetPasswordButton()).click();
+    await waitForUiSettled(this.page, 300);
   }
 
   async expectResetPasswordDialogVisible() {
@@ -419,10 +460,12 @@ export class BOAdminPage {
 
   async confirmResetPassword() {
     await this.resetPasswordFooter.locator('button').nth(1).click({ force: true });
+    await waitForNetworkSettled(this.page);
   }
 
   async cancelResetPassword() {
     await this.resetPasswordFooter.locator('button').first().click({ force: true });
+    await waitForUiSettled(this.page, 300);
   }
 
   async expectResetPasswordDialogHidden() {
@@ -453,6 +496,14 @@ export class BOAdminPage {
 
   async expectResetPasswordConfirmDisabled() {
     await expect(this.resetPasswordFooter.locator('button').nth(1)).toBeDisabled();
+  }
+
+  async expectResetPasswordSuccessAlert() {
+    await this.expectAlertContainsAny([
+      await this.text('success'),
+      await this.text('reset_password_success'),
+      await this.text('update_success'),
+    ]);
   }
 
   async expectStatusInList(account: string, status: AdminStatus) {

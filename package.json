@@ -4,6 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "npm run test:bo:auth && npm run test:bo:smoke && npm run test:bo:serial && npm run test:bo:smoke:session && npm run test:bo:auth:session",
+    "test:bo:auth": "set PW_SKIP_BO_GLOBAL_SETUP=1&& playwright test tests/bo/auth --grep-invert \"@isolated-session\" --workers=1",
+    "test:bo:auth:session": "set PW_SKIP_BO_GLOBAL_SETUP=1&& playwright test tests/bo/auth --grep \"@isolated-session\" --workers=1",
+    "test:bo:smoke": "playwright test tests/bo/smoke --grep-invert \"@serial|@isolated-session\"",
+    "test:bo:serial": "playwright test tests/bo/smoke --grep \"@serial\" --grep-invert \"@isolated-session\" --workers=1",
+    "test:bo:smoke:session": "playwright test tests/bo/smoke --grep \"@isolated-session\" --workers=1",
     "sync:i18n": "node scripts/sync-i18n.js"
   },
   "keywords": [],

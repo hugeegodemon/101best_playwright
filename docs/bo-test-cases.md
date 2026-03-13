@@ -186,6 +186,44 @@ File: [tests/bo/smoke/game-provider.spec.ts](/c:/Users/IE_Jason/playwright-bo/te
 - `jdb add game validates the visible game parameter fields`
 - `can create and edit a newly added jdb game`
 
+## System Bank
+
+### System Bank List
+
+File: [tests/bo/smoke/system-bank-list.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-list.spec.ts)
+
+- `system bank list page opens with region and bank filters`
+- `system bank list shows bank rows with edit action`
+- `system bank list search filters by bank code and reset clears fields`
+- `system bank list add button opens add page`
+- `system bank list can search by bank name`
+- `system bank list can filter rows by region`
+- `system bank list can show no data for unmatched filters`
+- `system bank list can combine region and bank code filters`
+- `can open first system bank edit page`
+
+### System Bank CRUD
+
+File: [tests/bo/smoke/system-bank-crud.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-crud.spec.ts)
+
+- `can create edit and search system bank`
+
+### System Bank Validation
+
+File: [tests/bo/smoke/system-bank-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-validation.spec.ts)
+
+- `add system bank requires all mandatory fields`
+- `add system bank can cancel without saving`
+- `cannot create duplicate system bank code`
+
+### System Bank Edit Validation
+
+File: [tests/bo/smoke/system-bank-edit-validation.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/bo/smoke/system-bank-edit-validation.spec.ts)
+
+- `edit system bank requires bank code and bank name`
+- `edit system bank cannot use duplicate code in the same region`
+- `edit system bank can cancel without saving changes`
+
 ## Summary
 
 - Auth: 5 cases
@@ -194,4 +232,5 @@ File: [tests/bo/smoke/game-provider.spec.ts](/c:/Users/IE_Jason/playwright-bo/te
 - Operator: 18 cases
 - Site: 18 cases
 - Game Provider: 10 cases
-- Total: 80 cases
+- System Bank: 16 cases
+- Total: 96 cases

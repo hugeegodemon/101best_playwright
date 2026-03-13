@@ -32,6 +32,20 @@ export default defineConfig({
     testMatch: [
       /.*bo[\\/]+smoke[\\/]+.*\.spec\.ts/,
     ],
+    testIgnore: [
+      /.*bo[\\/]+smoke[\\/]+system-bank.*\.spec\.ts/,
+    ],
+    dependencies: ['bo-setup'],
+    use: {
+      storageState: 'playwright/.auth/bo-user.json',
+    },
+  },
+  {
+    name: 'bo-authenticated-system-bank',
+    testMatch: [
+      /.*bo[\\/]+smoke[\\/]+system-bank.*\.spec\.ts/,
+    ],
+    workers: 1,
     dependencies: ['bo-setup'],
     use: {
       storageState: 'playwright/.auth/bo-user.json',
@@ -40,7 +54,7 @@ export default defineConfig({
   {
     name: 'bo-logout',
     testMatch: /.*bo[\\/]+auth[\\/]+logout\.spec\.ts/,
-    dependencies: ['bo-no-auth', 'bo-authenticated'],
+    dependencies: ['bo-no-auth', 'bo-authenticated', 'bo-authenticated-system-bank'],
   },
 ]
 });

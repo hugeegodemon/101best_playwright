@@ -4,6 +4,15 @@ import { BOI18n } from '../../utils/i18n';
 import { waitForAlertOrIdle, waitForNetworkSettled, waitForUiSettled, waitForVisibleSelectOptions } from './CommonPage';
 
 export type SiteTemplate = 'Layout 1' | 'Layout 2';
+export type BOSiteLocaleSettings = {
+  branchId: number;
+  siteName: string;
+  primaryLocaleCode: string;
+  otherLocaleCodes: string[];
+  primaryLocaleLabel: string;
+  otherLocaleLabels: string[];
+  localeLabelsInOrder: string[];
+};
 
 export class BOSiteListPage {
   readonly page: Page;
@@ -103,6 +112,30 @@ export class BOSiteListPage {
       .locator('.el-select-dropdown:visible .el-select-dropdown__item')
       .filter({ hasText: text })
       .last();
+  }
+
+  private async waitForSiteFetch(branchId?: number) {
+    const response = await this.page.waitForResponse(
+      (candidate) =>
+        candidate.url().includes('/api/v0/system/branch/fetch?branchId=') &&
+        candidate.status() === 200 &&
+        (branchId === undefined || candidate.url().includes(`branchId=${branchId}`)),
+      { timeout: 10000 }
+    );
+
+    return response.json().catch(() => null);
+  }
+
+  private async localeLabelFromCode(
+    supportedLocales: Array<{ value: string; label: string }>,
+    localeCode: string
+  ): Promise<string> {
+    const matched = supportedLocales.find((locale) => locale.value === localeCode);
+    if (!matched) {
+      return localeCode;
+    }
+
+    return this.copy(matched.label);
   }
 
   private async labeledFormItem(label: string, index = 0): Promise<Locator> {
@@ -577,6 +610,43 @@ export class BOSiteListPage {
     if (data.backendUrl !== undefined) {
       await this.urlInput(1).fill(data.backendUrl);
     }
+  }
+
+  async fetchSiteLocaleSettingsBySiteName(siteName: string): Promise<BOSiteLocaleSettings> {
+    await this.gotoSiteList();
+    await this.expectSiteListVisible();
+    await this.searchSite(siteName);
+    await this.expectSearchShowsSite(siteName);
+
+    const rowTexts = await this.rowTextsBySiteName(siteName);
+    const branchId = Number.parseInt(rowTexts[0], 10);
+    const responsePromise = this.waitForSiteFetch(Number.isNaN(branchId) ? undefined : branchId);
+
+    await this.clickEditRowBySiteName(siteName);
+    await this.expectEditSiteVisible();
+
+    const body = await responsePromise;
+    const data = body?.data?.data;
+    const supportedLocales = body?.data?.options?.supportedLocales ?? [];
+
+    if (!data?.primaryLocale || !Array.isArray(data?.otherLocales)) {
+      throw new Error(`Unable to resolve site locale settings for ${siteName}: ${JSON.stringify(body)}`);
+    }
+
+    const primaryLocaleLabel = await this.localeLabelFromCode(supportedLocales, data.primaryLocale);
+    const otherLocaleLabels = await Promise.all(
+      data.otherLocales.map((localeCode: string) => this.localeLabelFromCode(supportedLocales, localeCode))
+    );
+
+    return {
+      branchId: data.branchId,
+      siteName: data.branchName,
+      primaryLocaleCode: data.primaryLocale,
+      otherLocaleCodes: data.otherLocales,
+      primaryLocaleLabel,
+      otherLocaleLabels,
+      localeLabelsInOrder: [primaryLocaleLabel, ...otherLocaleLabels],
+    };
   }
 
   async saveEdit() {

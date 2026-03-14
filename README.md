@@ -67,11 +67,13 @@
    SBO_AUTH_PASSWORD=your_authenticated_test_password
    SBO_SMOKE_ACCOUNT=your_smoke_test_account
    SBO_SMOKE_PASSWORD=your_smoke_test_password
+   SBO_MANAGED_SITE=your_managed_test_site
    SBO_LOCALE=en-us
    ```
 
    `SBO_LOCALE` is optional. If omitted, tests will not prewrite `localStorage.language` and will instead follow the language value the site sets for itself.
    `SBO_SMOKE_ACCOUNT` and `SBO_SMOKE_PASSWORD` are recommended for smoke/global setup isolation. If omitted, smoke falls back to `SBO_ACCOUNT` and `SBO_PASSWORD`.
+   `SBO_MANAGED_SITE` is the shared BO test site used by specs that need a stable site selector target.
 
 ---
 

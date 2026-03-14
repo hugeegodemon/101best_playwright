@@ -1,6 +1,6 @@
 # BO Test Cases
 
-Updated: 2026-03-13
+Updated: 2026-03-14
 
 ## Execution Model
 
@@ -188,14 +188,58 @@ File: [tests/bo/smoke/carousel.spec.ts](/c:/Users/IE_Jason/playwright-bo/tests/b
 - `site selector is required on add carousel dialog`
 - `hyperlink type shows url input and target options`
 - `hyperlink type validates https url format`
+- `none link type hides hyperlink and specific game fields`
 - `specific game type requires game selection`
 - `upload image validates jpg webp format and size limit`
+- `carousel image language tabs follow the site primary and other language settings`
+- `create banner payload only includes locales allowed by the selected site`
 - `permanent time option disables end time`
+- `other time option requires end time for none link type`
+- `other time validates start time is earlier than end time`
 - `hyperlink carousel can be scheduled and appears in schedule list`
-- `published hyperlink carousel shows publish success and appears in list`
-- `published carousel can be deleted from list`
+- `past-start hyperlink carousel appears in publish show list when display slots remain`
+- `publish-show carousel can be unpublished and then deleted from offline list`
 - `specific game carousel can be scheduled and appears in schedule list`
 - `scheduled hyperlink carousel can open edit dialog and submit successfully`
+- `offline carousel edit without time changes shows generic success toast`
+- `reorder mode can drag and save`
+- `publish-show list can switch display status and move the row between show and hide views`
+- `schedule item can open lower-action confirmation and be removed from the list`
+- `past-start carousel auto-switches to publish hide list and shows create-time limit warning when display slots are full`
+- `publish-hide list shows limit warning when switching hidden carousel back to show while display slots are full`
+- `concurrent update warning is handled`
+- `concurrent delete warning is handled`
+
+### Site Promotion
+
+File: [tests/bo/smoke/promotion.spec.ts](/f:/code/101best/101best_playwright/tests/bo/smoke/promotion.spec.ts)
+
+- `promotion page opens with category tab and site selector`
+- `promotion settings tab shows site category filters and schedule status controls`
+- `add promotion dialog can open and cancel from promotion settings tab`
+- `add promotion dialog hides promotion information fields until dialog site is selected`
+- `add promotion dialog title languages follow the site primary and other language settings`
+- `add promotion dialog category options include created category`
+- `add promotion dialog requires all mandatory fields after site is selected`
+- `add promotion dialog shows time mode and pin-to-top options after site selection`
+- `add promotion dialog keeps end time input disabled until start time is chosen`
+- `add promotion dialog other mode enables end time input after start time is chosen`
+- `add promotion dialog requires both web and h5 images before submit`
+- `add category dialog can open and cancel`
+- `category add dialog hides localized name fields until dialog site is selected`
+- `category table headers follow the site primary and other language settings`
+- `category add dialog name fields follow the site primary and other language settings`
+- `category add dialog requires primary locale name before submit`
+- `category add dialog requires color before submit`
+- `category can be created successfully and deleted from category list`
+- `category delete can be canceled without removing the row`
+- `category edit requires primary locale name before submit`
+- `category edit dialog can open with site locked and cancel without changes`
+- `created category appears in promotion settings category filter`
+- `category can be edited successfully from category list`
+- `category reorder mode can cancel without changing list order`
+- `category reorder mode can drag and save new list order`
+- `category list disables add action when category count reaches 12`
 
 ## Game Provider
 
@@ -258,7 +302,7 @@ File: [tests/bo/smoke/system-bank-edit-validation.spec.ts](/c:/Users/IE_Jason/pl
 - Dashboard / Navbar / Header: 11 cases
 - Admin: 18 cases
 - Operator: 18 cases
-- Site: 31 cases
+- Site: 70 cases
 - Game Provider: 10 cases
 - System Bank: 16 cases
-- Total: 109 cases
+- Total: 148 cases

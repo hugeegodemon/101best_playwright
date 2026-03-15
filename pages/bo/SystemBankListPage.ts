@@ -58,7 +58,7 @@ export class BOSystemBankListPage {
     await expect(this.filterBox.locator('button.btn-blue')).toBeVisible();
     await expect(this.filterBox.locator('button.btn-primary')).toBeVisible();
     await expect(this.listBox.locator('button.btn-blue').first()).toBeVisible();
-    await expect(this.listRows().first()).toBeVisible();
+    await expect(this.listBox.locator('table').first()).toBeVisible();
   }
 
   listRows(): Locator {
@@ -67,6 +67,12 @@ export class BOSystemBankListPage {
 
   topRow(): Locator {
     return this.listRows().first();
+  }
+
+  rowByBankCode(bankCode: string): Locator {
+    return this.listRows().filter({
+      has: this.page.locator('td .cell', { hasText: bankCode }),
+    }).first();
   }
 
   async topRowTexts(): Promise<string[]> {
@@ -101,6 +107,10 @@ export class BOSystemBankListPage {
   async openTopRowEdit() {
     await this.topRow().locator('.bg-mainBlue.el-tooltip__trigger').first().click();
     await waitForNetworkSettled(this.page);
+  }
+
+  async expectListHasRows() {
+    await expect(this.listRows().first()).toBeVisible();
   }
 
   async fillBankCode(value: string) {
@@ -171,12 +181,12 @@ export class BOSystemBankListPage {
   }
 
   async submitForm() {
-    await this.page.locator('button.btn-primary').click();
+    await this.page.locator('button.btn-primary').last().click();
     await waitForNetworkSettled(this.page);
   }
 
   async cancelForm() {
-    await this.page.locator('button.btn-blue').click();
+    await this.page.locator('button.btn-blue').last().click();
     await waitForNetworkSettled(this.page);
   }
 
@@ -247,9 +257,7 @@ export class BOSystemBankListPage {
   }
 
   async expectBankInList(bankCode: string, bankName?: string) {
-    const row = this.listRows().filter({
-      has: this.page.locator('td .cell', { hasText: bankCode }),
-    }).first();
+    const row = this.rowByBankCode(bankCode);
     await expect(row).toBeVisible();
     if (bankName) {
       await expect(row).toContainText(bankName);
@@ -259,9 +267,7 @@ export class BOSystemBankListPage {
   async expectBankInListEventually(bankCode: string, bankName: string, attempts = 5) {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       await this.searchByBankCode(bankCode);
-      const row = this.listRows().filter({
-        has: this.page.locator('td .cell', { hasText: bankCode }),
-      }).first();
+      const row = this.rowByBankCode(bankCode);
 
       if (await row.count()) {
         const text = (await row.innerText()).replace(/\s+/g, ' ').trim();
@@ -277,9 +283,8 @@ export class BOSystemBankListPage {
   }
 
   async openEditByBankCode(bankCode: string) {
-    const row = this.listRows().filter({
-      has: this.page.locator('td .cell', { hasText: bankCode }),
-    }).first();
+    const row = this.rowByBankCode(bankCode);
+    await expect(row).toBeVisible();
     await row.locator('.bg-mainBlue.el-tooltip__trigger').first().click();
     await waitForNetworkSettled(this.page);
   }

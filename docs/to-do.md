@@ -13,11 +13,13 @@ Scope: `Site Settings > Carousel`
 
 Scope: `Site Settings > Promotion`
 
-- Pending: unblock `Add Promotion` image upload handling in [pages/bo/PromotionPage.ts](/f:/code/101best/101best_playwright/pages/bo/PromotionPage.ts)
-- Current blocker: `Web/H5` image inputs receive files via Playwright, but the dialog does not reflect uploaded state yet
-- Next target case: `scheduled promotion can be created and appears in Scheduled list`
+- Completed image upload unblock: Web/H5 use `setInputFiles` on `input[type=file]` in dialog; upload triggers immediate API call; settled with `waitForAlertOrIdle`
+- Promotion image fixtures: `promotion-web-valid.png` and `promotion-h5-valid.png` (1670×450px, ~3KB PNG)
+- Completed test: `scheduled promotion can be created and appears in Scheduled list`
 - Current implemented file: [tests/bo/smoke/promotion.spec.ts](/f:/code/101best/101best_playwright/tests/bo/smoke/promotion.spec.ts)
 - Current page object: [pages/bo/PromotionPage.ts](/f:/code/101best/101best_playwright/pages/bo/PromotionPage.ts)
+- Next: verify `submitAddPromotionDialogAndWaitForCreate` URL pattern matches actual API (`/api/v0/promotion`); adjust if endpoint differs
+- Remaining test cases to consider: edit promotion, delete promotion, active/inactive status filter
 
 ## Notes
 

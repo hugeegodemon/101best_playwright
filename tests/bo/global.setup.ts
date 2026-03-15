@@ -2,11 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { chromium, type FullConfig } from '@playwright/test';
 import { BOLoginPage } from '../../pages/bo/LoginPage';
+import { boSmokeAuthFile } from './helpers/auth-file';
 import { ENV } from '../../utils/env';
 import { useLocaleInContext } from '../../utils/i18n';
 
 const authDir = path.resolve(process.cwd(), 'playwright/.auth');
-const authFile = path.join(authDir, 'bo-smoke-user.json');
+const authFile = boSmokeAuthFile();
 
 async function globalSetup(_: FullConfig): Promise<void> {
   fs.mkdirSync(authDir, { recursive: true });

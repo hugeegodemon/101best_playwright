@@ -1,9 +1,9 @@
-import path from 'path';
 import { test as base, expect } from '@playwright/test';
+import { boSmokeAuthFile } from '../helpers/auth-file';
 import { ENV } from '../../../utils/env';
 import { useLocaleInContext } from '../../../utils/i18n';
 
-const authFile = path.resolve(process.cwd(), 'playwright/.auth/bo-smoke-user.json');
+const authFile = boSmokeAuthFile();
 
 export { expect };
 

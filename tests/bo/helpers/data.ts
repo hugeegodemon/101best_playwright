@@ -117,3 +117,15 @@ export function buildCarouselLinkDraft(prefix = 'carousel') {
     editedUrl: `example.com/${prefix}-edited-${suffix}`,
   };
 }
+
+export function buildCustomerServiceDraft(prefix = 'AutoCS') {
+  const suffix = uniqueAlpha(6);
+
+  return {
+    suffix,
+    name: `${prefix}${suffix}`,
+    editedName: `${prefix}${suffix}E`,
+    serviceId: `auto${suffix}`,
+    editedServiceId: `auto${suffix}e`,
+  };
+}

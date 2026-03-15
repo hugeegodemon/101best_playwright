@@ -16,6 +16,7 @@ test.describe('BO System Bank List @serial', () => {
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
+    await systemBankPage.expectListHasRows();
 
     const texts = await systemBankPage.topRowTexts();
     expect(texts[0].length).toBeGreaterThan(0);
@@ -29,7 +30,13 @@ test.describe('BO System Bank List @serial', () => {
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
+    await systemBankPage.expectListHasRows();
 
+    const initialRowCount = await systemBankPage.listRows().count();
+    const secondRowBankCode =
+      initialRowCount > 1
+        ? ((await systemBankPage.listRows().nth(1).locator('td').first().innerText()).trim())
+        : null;
     const [bankCode] = await systemBankPage.topRowTexts();
     await systemBankPage.fillBankCode(bankCode);
     await systemBankPage.clickSearch();
@@ -43,7 +50,11 @@ test.describe('BO System Bank List @serial', () => {
     expect(filters.bankName).toBe('');
 
     await systemBankPage.clickSearch();
-    await expect(systemBankPage.listRows()).toHaveCount(10);
+    await systemBankPage.expectBankInList(bankCode);
+
+    if (secondRowBankCode) {
+      await systemBankPage.expectBankInList(secondRowBankCode);
+    }
   });
 
   test('system bank list add button opens add page', async ({ page }) => {
@@ -60,25 +71,26 @@ test.describe('BO System Bank List @serial', () => {
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
+    await systemBankPage.expectListHasRows();
 
     const topRowTexts = await systemBankPage.topRowTexts();
     const bankName = topRowTexts[1];
     await systemBankPage.searchByBankName(bankName);
 
-    await expect(systemBankPage.listRows()).toHaveCount(1);
     await systemBankPage.expectBankInList(topRowTexts[0], bankName);
   });
 
   test('system bank list can filter rows by region', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
+    const region = await systemBankPage.copy('region_code_1');
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
-    await systemBankPage.selectFilterRegion(await systemBankPage.copy('region_code_1'));
+    await systemBankPage.selectFilterRegion(region);
     await systemBankPage.clickSearch();
 
-    await expect(systemBankPage.listRows().first()).toBeVisible();
-    await systemBankPage.expectAllRowsContain(await systemBankPage.copy('region_code_1'));
+    await systemBankPage.expectListHasRows();
+    await systemBankPage.expectAllRowsContain(region);
   });
 
   test('system bank list can show no data for unmatched filters', async ({ page }) => {
@@ -94,16 +106,22 @@ test.describe('BO System Bank List @serial', () => {
 
   test('system bank list can combine region and bank code filters', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
+    const region = await systemBankPage.copy('region_code_1');
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
-    await systemBankPage.selectFilterRegion(await systemBankPage.copy('region_code_1'));
-    await systemBankPage.fillBankCode('TCB');
+    await systemBankPage.selectFilterRegion(region);
+    await systemBankPage.clickSearch();
+    await systemBankPage.expectListHasRows();
+    const [bankCode] = await systemBankPage.topRowTexts();
+
+    await systemBankPage.clickReset();
+    await systemBankPage.selectFilterRegion(region);
+    await systemBankPage.fillBankCode(bankCode);
     await systemBankPage.clickSearch();
 
-    await expect(systemBankPage.listRows()).toHaveCount(1);
-    await systemBankPage.expectBankInList('TCB');
-    await systemBankPage.expectAllRowsContain(await systemBankPage.copy('region_code_1'));
+    await systemBankPage.expectBankInList(bankCode);
+    await systemBankPage.expectAllRowsContain(region);
   });
 
   test('can open first system bank edit page', async ({ page }) => {

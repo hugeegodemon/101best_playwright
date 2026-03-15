@@ -1,3 +1,4 @@
+import path from 'path';
 import { BOPromotionPage } from '../../../pages/bo/PromotionPage';
 import { BOSiteListPage } from '../../../pages/bo/SiteListPage';
 import { dateTimeOffset, uniqueAlpha } from '../helpers/data';
@@ -5,8 +6,16 @@ import { LANGUAGE_VALIDATION_BO_SITE, MANAGED_BO_SITE } from '../helpers/site';
 import { expect } from './test';
 import { test } from './test';
 
+const fixture = (name: string) => path.resolve(process.cwd(), 'tests/fixtures/images', name);
+
 const STALE_DEBUG_CATEGORY_NAMES = ['Autopdvkeavm', 'Autokgwneavm', 'Autotigqeavm'];
-const STALE_PROMOTION_CATEGORY_PATTERNS = ['AutoPromoSort', 'AutoPromoLimit'];
+const STALE_PROMOTION_CATEGORY_PATTERNS = [
+  'AutoPromoSort', 'AutoPromoLimit', 'AutoPromoSched', 'AutoPromoOption',
+  'AutoPromoImage', 'AutoPromoNeedColor', 'AutoPromoCancelDelete', 'AutoPromoEditRequired',
+  'AutoPromoEditCancel', 'AutoPromoSettings', 'AutoPromoEdit', 'AutoPromoEdited',
+  'AutoPromoSortOne', 'AutoPromoSortTwo', 'AutoPromoSortSaveOne', 'AutoPromoSortSaveTwo',
+  'AutoPromoCat', 'AutoPromoMapCat', 'AutoDebug', 'AutoDbg',
+];
 
 function buildPromotionCategoryName(prefix = 'AutoPromoCat') {
   return `${prefix}${uniqueAlpha(6)}`;
@@ -22,6 +31,7 @@ async function createCategory(
 
   await promotionPage.gotoPromotion();
   await promotionPage.expectPromotionVisible();
+  await promotionPage.clickCategoryTab();
   await promotionPage.selectSiteByName(siteName);
   await promotionPage.expectCategoryTabVisible();
   await deleteCategoryIfPresent(promotionPage, name);
@@ -40,7 +50,7 @@ async function createCategory(
   expect(payload.branchId).toBeGreaterThan(0);
   expect(payload.promotionTypeName).toEqual({ [localeSettings.primaryLocaleCode]: name });
   expect(payload.promotionTypeColor).toMatch(/^[A-F0-9]{6}$/);
-  await promotionPage.expectLatestAlertContains(/Added successfully|Success/i);
+  await promotionPage.expectLatestAlertContainsAny(['added_successfully', 'success']);
   await promotionPage.expectCategoryRowVisibleByText(name);
 }
 
@@ -51,9 +61,14 @@ async function deleteCategoryIfPresent(promotionPage: BOPromotionPage, name: str
 
   await promotionPage.clickDeleteCategoryByText(name);
   await promotionPage.expectConfirmDeleteCategoryDialog();
-  await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-  await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
-  await promotionPage.expectCategoryRowNotVisibleByText(name);
+  try {
+    await promotionPage.confirmDeleteCategoryAndWaitForDelete();
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
+    await promotionPage.expectCategoryRowNotVisibleByText(name);
+  } catch {
+    // Category may have active promotions (000305) — cancel and skip for best-effort cleanup.
+    await promotionPage.cancelConfirmDialog().catch(() => undefined);
+  }
 }
 
 async function deleteCategoriesMatchingText(promotionPage: BOPromotionPage, text: string) {
@@ -64,8 +79,21 @@ async function deleteCategoriesMatchingText(promotionPage: BOPromotionPage, text
 
     await promotionPage.clickDeleteCategoryByText(text);
     await promotionPage.expectConfirmDeleteCategoryDialog();
-    await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    try {
+      await promotionPage.confirmDeleteCategoryAndWaitForDelete();
+    } catch {
+      // Error might be a response timeout while the server still deleted the row.
+      // Cancel dialog if still open, then check whether the row is actually gone.
+      await promotionPage.cancelConfirmDialog().catch(() => undefined);
+      const stillThere = await promotionPage.hasCategoryRow(text);
+      if (stillThere) {
+        // Delete genuinely failed (e.g., 000305 — category has active promotions) — stop.
+        return;
+      }
+      // Row is gone — deletion succeeded despite the error; continue deleting more rows.
+    }
+    // Alert check is best-effort in cleanup — don't bail if it's already gone.
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']).catch(() => undefined);
   }
 
   throw new Error(`Failed to delete categories matching text: ${text}`);
@@ -77,11 +105,84 @@ async function deleteCategoriesMatchingAnyText(promotionPage: BOPromotionPage, t
   }
 }
 
+async function deleteStalePromotionsForCategory(promotionPage: BOPromotionPage, categoryName: string) {
+  // Caller must already be on the Settings tab with site selected and search triggered.
+  // We just change the category filter and cycle through statuses — no page reload needed.
+  await promotionPage.selectSettingsCategoryFilter(categoryName);
+
+  // Scheduled: delete directly.
+  for (let i = 0; i < 10; i++) {
+    await promotionPage.clickStatusFilter('promote_schedule');
+    if (!(await promotionPage.hasVisiblePromotionInSettings())) break;
+    await promotionPage.clickDeleteFirstVisiblePromotion();
+    await promotionPage.confirmDeletePromotionAndWaitForDelete();
+  }
+
+  // Live: take offline first (cannot be deleted while live).
+  for (let i = 0; i < 10; i++) {
+    await promotionPage.clickStatusFilter('promote_active');
+    if (!(await promotionPage.hasVisiblePromotionInSettings())) break;
+    await promotionPage.takeFirstVisiblePromotionOffline();
+  }
+
+  // Offline: delete (includes any just taken offline).
+  for (let i = 0; i < 10; i++) {
+    await promotionPage.clickStatusFilter('promote_inactive');
+    if (!(await promotionPage.hasVisiblePromotionInSettings())) break;
+    await promotionPage.clickDeleteFirstVisiblePromotion();
+    await promotionPage.confirmDeletePromotionAndWaitForDelete();
+  }
+}
+
+async function deleteAllStalePromotions(promotionPage: BOPromotionPage) {
+  // Must be called while on Category tab so categoryRowTexts() works.
+  const allCategories = await promotionPage.categoryRowTexts();
+  const staleCategories = allCategories.filter((name) =>
+    STALE_PROMOTION_CATEGORY_PATTERNS.some((pattern) => name.includes(pattern))
+  );
+
+  if (staleCategories.length === 0) {
+    return;
+  }
+
+  // Enter Settings tab once, then work through all stale categories without full-page reloads.
+  await reloadPromotionSettingsPage(promotionPage);
+  for (const catName of staleCategories) {
+    await deleteStalePromotionsForCategory(promotionPage, catName);
+  }
+
+  // Return to Category tab for subsequent category cleanup.
+  await reloadPromotionCategoryPage(promotionPage);
+}
+
 async function reloadPromotionCategoryPage(promotionPage: BOPromotionPage) {
   await promotionPage.page.reload();
   await promotionPage.expectPromotionVisible();
   await promotionPage.selectSiteByName(MANAGED_BO_SITE);
   await promotionPage.expectCategoryTabVisible();
+}
+
+async function reloadPromotionSettingsPage(promotionPage: BOPromotionPage) {
+  await promotionPage.page.reload();
+  await promotionPage.expectPromotionVisible();
+  await promotionPage.clickPromotionSettingsTab();
+  await promotionPage.selectSiteByName(MANAGED_BO_SITE);
+  // The Settings tab requires clicking the search button to load promotion data.
+  await promotionPage.clickSettingsSearch();
+  await promotionPage.expectPromotionSettingsTabVisible();
+}
+
+async function deletePromotionIfPresent(promotionPage: BOPromotionPage, title: string) {
+  // Try each status filter in turn — the promotion may be in any state.
+  for (const filter of ['promote_schedule', 'promote_active', 'promote_inactive']) {
+    await promotionPage.clickStatusFilter(filter);
+    const found = await promotionPage.expectPromotionInList(title).then(() => true).catch(() => false);
+    if (found) {
+      await promotionPage.clickDeletePromotionByTitle(title);
+      await promotionPage.confirmDeletePromotionAndWaitForDelete();
+      return;
+    }
+  }
 }
 
 test.describe('BO Promotion', () => {
@@ -352,7 +453,7 @@ test.describe('BO Promotion', () => {
     await promotionPage.clickDeleteCategoryByText(name);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
   });
 
@@ -371,7 +472,7 @@ test.describe('BO Promotion', () => {
     await promotionPage.clickDeleteCategoryByText(name);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
   });
 
@@ -393,7 +494,7 @@ test.describe('BO Promotion', () => {
     await promotionPage.clickDeleteCategoryByText(name);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
   });
 
@@ -411,7 +512,7 @@ test.describe('BO Promotion', () => {
     await promotionPage.clickDeleteCategoryByText(name);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
   });
 
@@ -431,7 +532,7 @@ test.describe('BO Promotion', () => {
     await promotionPage.clickDeleteCategoryByText(name);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
   });
 
@@ -466,14 +567,14 @@ test.describe('BO Promotion', () => {
     expect(payload.promotionTypeName).toEqual({ [localeSettings.primaryLocaleCode]: editedName });
     expect(payload.promotionTypeColor).toMatch(/^[A-F0-9]{6}$/);
 
-    await promotionPage.expectLatestAlertContains(/Updated successfully|Edited successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['update_success', 'edit_success', 'success']);
     await promotionPage.expectCategoryRowVisibleByText(editedName);
     await promotionPage.expectCategoryRowNotVisibleByText(name);
 
     await promotionPage.clickDeleteCategoryByText(editedName);
     await promotionPage.expectConfirmDeleteCategoryDialog();
     await promotionPage.confirmDeleteCategoryAndWaitForDelete();
-    await promotionPage.expectLatestAlertContains(/Deleted successfully|Success/i);
+    await promotionPage.expectLatestAlertContainsAny(['delete_success', 'success']);
     await promotionPage.expectCategoryRowNotVisibleByText(editedName);
   });
 
@@ -550,7 +651,7 @@ test.describe('BO Promotion', () => {
       expect(payload.branchId).toBeGreaterThan(0);
       expect(payload.promotionTypeSort).toBeDefined();
       expect(payload.promotionTypeSort).toHaveLength(orderBeforeSort.length);
-      await promotionPage.expectLatestAlertContains(/Sorted successfully|Updated successfully|Success/i);
+      await promotionPage.expectLatestAlertContainsAny(['update_success', 'edit_success', 'success']);
       await reloadPromotionCategoryPage(promotionPage);
 
       const orderAfterSave = await promotionPage.categoryRowTexts();
@@ -559,6 +660,59 @@ test.describe('BO Promotion', () => {
       await reloadPromotionCategoryPage(promotionPage);
       await deleteCategoryIfPresent(promotionPage, secondName);
       await deleteCategoryIfPresent(promotionPage, firstName);
+    }
+  });
+
+  test('scheduled promotion can be created and appears in Scheduled list', async ({ page }) => {
+    test.setTimeout(300000);
+
+    const sitePage = new BOSiteListPage(page);
+    const promotionPage = new BOPromotionPage(page);
+    const categoryName = buildPromotionCategoryName('AutoPromoSched');
+    const title = buildPromotionCategoryName('AutoPromoSchedTitle');
+
+    // Clean up stale promotions first (they block category deletion with error 000305),
+    // then clean up stale categories so the 12-category limit is not hit.
+    await promotionPage.gotoPromotion();
+    await promotionPage.expectPromotionVisible();
+    await promotionPage.selectSiteByName(MANAGED_BO_SITE);
+    await promotionPage.expectCategoryTabVisible();
+    await deleteAllStalePromotions(promotionPage);
+    await deleteCategoriesMatchingAnyText(promotionPage, STALE_PROMOTION_CATEGORY_PATTERNS);
+
+    await createCategory(promotionPage, sitePage, MANAGED_BO_SITE, categoryName);
+
+    try {
+      await promotionPage.clickPromotionSettingsTab();
+      await promotionPage.selectSiteByName(MANAGED_BO_SITE);
+      await promotionPage.expectPromotionSettingsTabVisible();
+      await promotionPage.openAddPromotionDialog();
+
+      await promotionPage.selectAddPromotionSiteByName(MANAGED_BO_SITE);
+      await promotionPage.selectAddPromotionCategoryByName(categoryName);
+      await promotionPage.fillAddPromotionStartTime(dateTimeOffset(120));
+      await promotionPage.chooseAddPromotionEndTimeMode('Permanent');
+      await promotionPage.chooseAddPromotionPinTop(false);
+      await promotionPage.fillAddPromotionPrimaryTitle(title);
+      await promotionPage.fillAddPromotionPrimaryContent('Autopromo scheduled content');
+
+      await promotionPage.waitForAddPromotionImageUploadsReady();
+      await promotionPage.uploadAddPromotionWebImage(fixture('promotion-web-valid.jpg'));
+      await promotionPage.uploadAddPromotionH5Image(fixture('promotion-h5-valid.jpg'));
+
+      await promotionPage.submitAddPromotionDialogAndWaitForCreate();
+
+      // After dialog closes we stay on the Settings tab. Reload to ensure fresh data,
+      // switch to Scheduled filter (our promotion has a future start time), then verify.
+      await reloadPromotionSettingsPage(promotionPage);
+      await promotionPage.clickStatusFilter('promote_schedule');
+      await promotionPage.expectPromotionInList(title);
+    } finally {
+      await reloadPromotionSettingsPage(promotionPage);
+      await promotionPage.clickStatusFilter('promote_schedule');
+      await deletePromotionIfPresent(promotionPage, title);
+      await reloadPromotionCategoryPage(promotionPage);
+      await deleteCategoryIfPresent(promotionPage, categoryName);
     }
   });
 

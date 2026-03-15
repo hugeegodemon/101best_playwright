@@ -45,6 +45,7 @@ test.describe('BO Operator Account', () => {
 
   test('create operator validates account format', async ({ page }) => {
     const operatorPage = new BOOperatorPage(page);
+    const i18n = new BOI18n(page);
     const operator = buildOperatorData();
     await operatorPage.gotoAddOperator();
     await operatorPage.fillAddOperatorForm({
@@ -56,7 +57,10 @@ test.describe('BO Operator Account', () => {
     });
     await operatorPage.save();
 
-    await operatorPage.expectFieldErrorContains('account', [/5.*20.*alphanumeric/i, /5.*20/i]);
+    await operatorPage.expectFieldErrorContains('account', [
+      await i18n.t('account_validate'),
+      await i18n.t('000097_5', 'error_code'),
+    ]);
   });
 
   test('create operator validates name format', async ({ page }) => {
@@ -75,8 +79,8 @@ test.describe('BO Operator Account', () => {
 
     await operatorPage.expectFieldErrorContains('name', [
       await i18n.t('no_spaces_allowed'),
-      /2.*20/i,
-      /space/i,
+      await i18n.t('no_edge_space'),
+      await i18n.t('000097_10', 'error_code'),
     ]);
   });
 
@@ -97,7 +101,6 @@ test.describe('BO Operator Account', () => {
     await operatorPage.expectFieldErrorContains('e_mail', [
       await i18n.t('email_validate'),
       await i18n.error('000090_23'),
-      /email/i,
     ]);
   });
 
@@ -118,7 +121,8 @@ test.describe('BO Operator Account', () => {
     await operatorPage.expectFieldErrorContains('confirm_password', [
       await i18n.t('need_same_password'),
       await i18n.t('must_match_password'),
-      /match/i,
+      await i18n.t('000097_16', 'error_code'),
+      await i18n.t('000011_12', 'error_code'),
     ]);
   });
 
@@ -137,10 +141,7 @@ test.describe('BO Operator Account', () => {
     await operatorPage.selectAddStatus('Enable');
     await operatorPage.save();
 
-    await operatorPage.expectFieldErrorContains('role', [
-      await new BOI18n(page).t('required_field'),
-      /required/i,
-    ]);
+    await operatorPage.expectFieldErrorContains('role', [await new BOI18n(page).t('required_field')]);
   });
 
   test('operator list search validates account minimum length', async ({ page }) => {
@@ -153,7 +154,7 @@ test.describe('BO Operator Account', () => {
     await operatorPage.expectSearchValidationError([
       await i18n.t('search_account_validate'),
       await i18n.t('search_length_validate'),
-      /least\s*3|at\s*least\s*3|至少\s*3|三碼以上|三字以上/i,
+      await i18n.t('at_least_3_characters'),
     ]);
   });
 

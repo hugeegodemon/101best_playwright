@@ -106,7 +106,8 @@ test.describe('BO Operator CRUD', () => {
       await operatorPage.expectResetPasswordFormErrorContains([
         await i18n.t('need_same_password'),
         await i18n.t('must_match_password'),
-        /match/i,
+        await i18n.t('000097_16', 'error_code'),
+        await i18n.t('000011_12', 'error_code'),
       ]);
       await operatorPage.cancelResetPassword();
       await operatorPage.expectResetPasswordDialogHidden();
@@ -120,7 +121,12 @@ test.describe('BO Operator CRUD', () => {
         confirmPassword: 'abc123',
       });
       await operatorPage.confirmResetPassword();
-      await operatorPage.expectResetPasswordFormErrorContains([/8.*20/i, /alphanumeric/i]);
+      await operatorPage.expectResetPasswordFormErrorContains([
+        await i18n.t('password_validate'),
+        await i18n.t('password_validate_2'),
+        await i18n.t('000113_5', 'error_code'),
+        await i18n.t('000097_15', 'error_code'),
+      ]);
       await operatorPage.cancelResetPassword();
       await operatorPage.expectResetPasswordDialogHidden();
     });

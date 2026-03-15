@@ -33,14 +33,18 @@ test.describe('BO System Bank Validation @serial', () => {
 
   test('cannot create duplicate system bank code', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
+    const region = await systemBankPage.copy('region_code_1');
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
+    await systemBankPage.selectFilterRegion(region);
+    await systemBankPage.clickSearch();
+    await systemBankPage.expectListHasRows();
     const existingBankCode = (await systemBankPage.topRowTexts())[0];
     await systemBankPage.clickAddBank();
     await systemBankPage.expectAddPageVisible();
     await systemBankPage.createBank({
-      region: await systemBankPage.copy('region_code_1'),
+      region,
       bankCode: existingBankCode,
       bankName: `DUP BANK ${uniqueDigits(6)}`,
     });

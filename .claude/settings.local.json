@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \":*)",
+      "Bash(where ffmpeg:*)",
+      "Bash(where convert:*)",
+      "Bash(where magick:*)",
+      "Bash(npx playwright:*)",
+      "Bash(grep -v \"^  $\")",
+      "Bash(node -e \"const s = require\\(''''sharp''''\\); console.log\\(''''sharp available''''\\)\")",
+      "Bash(npm list:*)",
+      "Bash(node -e \"require\\(''''jimp''''\\)\")",
+      "Bash(node -e \"require\\(''''@jimp/core''''\\)\")"
+    ]
+  }
+}

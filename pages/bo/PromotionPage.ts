@@ -807,6 +807,166 @@ export class BOPromotionPage {
     await waitForNetworkSettled(this.page, 800);
   }
 
+  // The Web and H5 upload triggers are div.el-upload[role=button] elements.
+  // Initially 2 exist (nth(0)=Web, nth(1)=H5). After Web upload the Web el-upload disappears
+  // from the DOM, leaving only H5 at nth(0).
+  private addPromotionElUploads(): Locator {
+    return this.addPromotionDialog().locator('.el-upload');
+  }
+
+  async waitForAddPromotionImageUploadsReady() {
+    // Wait until both Web and H5 upload triggers are in the DOM.
+    await expect(this.addPromotionElUploads().nth(0)).toBeAttached();
+    await expect(this.addPromotionElUploads().nth(1)).toBeAttached();
+  }
+
+  async uploadAddPromotionWebImage(filePath: string) {
+    // Scroll dialog to top so the Web upload area (above CKEditor) is reachable.
+    await this.addPromotionDialog()
+      .locator('.el-dialog__body')
+      .evaluate((el) => (el.scrollTop = 0));
+    // Use JS click to bypass Playwright's out-of-viewport guard (Web el-upload collapses to 0×0).
+    const [fileChooser] = await Promise.all([
+      this.page.waitForEvent('filechooser', { timeout: 10000 }),
+      this.addPromotionElUploads().nth(0).evaluate((el) => (el as HTMLElement).click()),
+    ]);
+    await fileChooser.setFiles(filePath);
+    // After upload the Web el-upload disappears; wait for network to settle.
+    await waitForNetworkSettled(this.page, 1000);
+  }
+
+  async uploadAddPromotionH5Image(filePath: string) {
+    // After Web upload the count drops from 2 to 1; H5 is now at nth(0).
+    const [fileChooser] = await Promise.all([
+      this.page.waitForEvent('filechooser', { timeout: 10000 }),
+      this.addPromotionElUploads().nth(0).evaluate((el) => (el as HTMLElement).click()),
+    ]);
+    await fileChooser.setFiles(filePath);
+    await waitForNetworkSettled(this.page, 1000);
+  }
+
+  async submitAddPromotionDialogAndWaitForCreate() {
+    await this.addPromotionDialogFooterButton(1).click({ force: true });
+    // Wait for dialog to close. Don't add waitForNetworkSettled here — the caller
+    // checks the success alert immediately after and the alert fades in ~3s.
+    await expect(this.addPromotionDialog()).toHaveCount(0, { timeout: 30000 });
+  }
+
+  async clickSettingsSearch() {
+    // Yellow search button (btn-primary) in the Settings filter area — required to load the list.
+    await this.activePane().locator('button.btn-primary').first().click({ force: true });
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  async selectSettingsCategoryFilter(name: string) {
+    const wrapper = this.paneSelect(1);
+    await this.openSelectUntilOptionsVisible(wrapper);
+    await this.visibleOption(name).click({ force: true });
+    // Re-run the search so the list refreshes for the selected category.
+    await this.clickSettingsSearch();
+  }
+
+  async hasVisiblePromotionInSettings(): Promise<boolean> {
+    return this.activePane().locator('.bg-notice').count().then((c) => c > 0).catch(() => false);
+  }
+
+  async clickDeleteFirstVisiblePromotion() {
+    await this.activePane().locator('.bg-notice').first().click({ force: true });
+  }
+
+  async takeFirstVisiblePromotionOffline() {
+    // Click the "下檔" (take offline) button — same .bg-notice class as carousel's lower button.
+    await this.activePane().locator('.bg-notice').first().click({ force: true });
+    // Some implementations open a confirmation dialog; confirm it if present.
+    const dialog = this.page.locator('.el-dialog:visible').last();
+    const hasDialog = await dialog.isVisible({ timeout: 2000 }).catch(() => false);
+    if (hasDialog) {
+      await dialog.locator('.el-dialog__footer button').nth(1).click({ force: true });
+      await expect(dialog).toHaveCount(0, { timeout: 10000 });
+    }
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  async clickStatusFilter(key: string) {
+    const label = await this.text(key);
+    await this.activePane().getByRole('button', { name: label }).click({ force: true });
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  async hasPromotionInList(title: string): Promise<boolean> {
+    // Search all table rows on the page — avoids relying on activePane() aria-hidden state.
+    const rows = this.page.locator('tbody tr');
+    const count = await rows.count().catch(() => 0);
+    for (let i = 0; i < count; i++) {
+      const text = (await rows.nth(i).textContent().catch(() => '')) ?? '';
+      if (text.includes(title)) return true;
+    }
+    return false;
+  }
+
+  async hasPromotionMatchingText(text: string): Promise<boolean> {
+    // Use .cell (Element Plus cell class) — works for both standard and virtual tables.
+    const cells = this.page.locator('.cell');
+    const count = await cells.count().catch(() => 0);
+    for (let i = 0; i < count; i++) {
+      const cellText = (await cells.nth(i).textContent().catch(() => '')) ?? '';
+      if (cellText.includes(text)) return true;
+    }
+    return false;
+  }
+
+  async clickDeleteFirstPromotionMatchingText(text: string) {
+    // Search all table rows on the page and click the delete button in the matching row.
+    const rows = this.page.locator('tbody tr');
+    const count = await rows.count();
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const rowText = (await row.textContent().catch(() => '')) ?? '';
+      if (rowText.includes(text)) {
+        await row.locator('.bg-notice').first().click({ force: true });
+        return;
+      }
+    }
+  }
+
+  async expectPromotionInList(title: string) {
+    await expect.poll(async () => this.hasPromotionInList(title), { timeout: 20000 }).toBe(true);
+  }
+
+  async expectPromotionNotInList(title: string) {
+    await expect.poll(async () => this.hasPromotionInList(title), { timeout: 10000 }).toBe(false);
+  }
+
+  async clickDeletePromotionByTitle(title: string) {
+    await this.expectPromotionInList(title);
+    // Find the row anywhere on the page (same page-level search as hasPromotionInList).
+    const rows = this.page.locator('tbody tr');
+    const count = await rows.count();
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const text = (await row.textContent().catch(() => '')) ?? '';
+      if (text.includes(title)) {
+        await row.locator('.bg-notice').first().click({ force: true });
+        return;
+      }
+    }
+    throw new Error(`Promotion row not found for title: ${title}`);
+  }
+
+  async confirmDeletePromotionAndWaitForDelete() {
+    const dialog = this.page.locator('.el-dialog:visible').last();
+    await dialog.locator('.el-dialog__footer button').nth(1).click({ force: true });
+    await expect(dialog).toHaveCount(0, { timeout: 15000 });
+    await waitForNetworkSettled(this.page, 800);
+  }
+
+  async expectLatestAlertContainsAny(keys: string[]) {
+    const texts = await Promise.all(keys.map((k) => this.text(k)));
+    await this.expectLatestAlertContains(
+      new RegExp(texts.map((t) => this.escapeRegex(t)).join('|'), 'i')
+    );
+  }
+
   async expectLatestAlertContains(message: string | RegExp) {
     const deadline = Date.now() + 5000;
 

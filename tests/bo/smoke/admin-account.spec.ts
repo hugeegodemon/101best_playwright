@@ -102,6 +102,7 @@ test.describe('BO Admin Account', () => {
 
   test('create admin validates account format', async ({ page }) => {
     const adminPage = new BOAdminPage(page);
+    const i18n = new BOI18n(page);
     await adminPage.gotoAddAdmin();
     await adminPage.fillCreateAdminForm({
       account: 'a123',
@@ -112,7 +113,10 @@ test.describe('BO Admin Account', () => {
     });
     await adminPage.save();
 
-    await adminPage.expectFieldErrorContains('account', [/5.*20.*alphanumeric/i, /5.*20/i]);
+    await adminPage.expectFieldErrorContains('account', [
+      await i18n.t('account_validate'),
+      await i18n.t('000090_5', 'error_code'),
+    ]);
   });
 
   test('create admin validates name format', async ({ page }) => {
@@ -132,8 +136,8 @@ test.describe('BO Admin Account', () => {
 
     await adminPage.expectFieldErrorContains('name', [
       await i18n.t('no_spaces_allowed'),
-      /2.*20/i,
-      /space/i,
+      await i18n.t('no_edge_space'),
+      await i18n.t('000090_30', 'error_code'),
     ]);
   });
 
@@ -155,7 +159,6 @@ test.describe('BO Admin Account', () => {
     await adminPage.expectFieldErrorContains('e_mail', [
       await i18n.t('email_validate'),
       await i18n.error('000090_23'),
-      /email/i,
     ]);
   });
 
@@ -210,8 +213,8 @@ test.describe('BO Admin Account', () => {
     await adminPage.clearEditField('e_mail');
     await adminPage.save();
 
-    await adminPage.expectFieldErrorContains('name', [await i18n.t('required_field'), /required/i]);
-    await adminPage.expectFieldErrorContains('e_mail', [await i18n.t('required_field'), /required/i]);
+    await adminPage.expectFieldErrorContains('name', [await i18n.t('required_field')]);
+    await adminPage.expectFieldErrorContains('e_mail', [await i18n.t('required_field')]);
   });
 
   test('edit admin validates email format', async ({ page }) => {
@@ -232,7 +235,6 @@ test.describe('BO Admin Account', () => {
     await adminPage.expectFieldErrorContains('e_mail', [
       await i18n.t('email_validate'),
       await i18n.error('000090_23'),
-      /email/i,
     ]);
   });
 
@@ -294,12 +296,14 @@ test.describe('BO Admin Account', () => {
     await adminPage.expectResetPasswordFormErrorContains([
       await i18n.t('need_same_password'),
       await i18n.t('must_match_password'),
-      /match/i,
+      await i18n.t('000096_11', 'error_code'),
+      await i18n.t('000011_12', 'error_code'),
     ]);
   });
 
   test('reset password validates password format', async ({ page }) => {
     const adminPage = new BOAdminPage(page);
+    const i18n = new BOI18n(page);
     const data = buildAdminData();
     await adminPage.gotoAddAdmin();
     await adminPage.createAdmin({
@@ -317,7 +321,12 @@ test.describe('BO Admin Account', () => {
     });
     await adminPage.confirmResetPassword();
 
-    await adminPage.expectResetPasswordFormErrorContains([/8.*20/i, /alphanumeric/i]);
+    await adminPage.expectResetPasswordFormErrorContains([
+      await i18n.t('password_validate'),
+      await i18n.t('password_validate_2'),
+      await i18n.t('000096_8', 'error_code'),
+      await i18n.t('000092_5', 'error_code'),
+    ]);
   });
 
   test('reset password cannot reuse old password', async ({ page }) => {
@@ -342,7 +351,7 @@ test.describe('BO Admin Account', () => {
     await adminPage.expectAlertContainsAny([
       await i18n.error('000094'),
       await i18n.error('000032'),
-      /same as the old password/i,
+      await i18n.t('000044_9', 'error_code'),
     ]);
   });
 

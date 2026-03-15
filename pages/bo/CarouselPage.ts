@@ -42,6 +42,10 @@ export class BOCarouselPage {
     );
   }
 
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   async copy(
     key: string,
     namespace: 'backend' | 'frontend' | 'error_code' = 'backend',
@@ -71,14 +75,32 @@ export class BOCarouselPage {
     return this.page.locator('.page-box').last();
   }
 
-  private archiveFilterButton(status: CarouselArchiveStatus): Locator {
-    const index = {
-      Publish: 0,
-      Schedule: 1,
-      Unpublish: 2,
+  private async archiveStatusText(status: CarouselArchiveStatus): Promise<string> {
+    const key = {
+      Publish: 'promote_active',
+      Schedule: 'promote_schedule',
+      Unpublish: 'promote_inactive',
     }[status];
 
-    return this.listBox.locator('button').nth(index);
+    return this.copy(key);
+  }
+
+  private async linkTypeText(type: CarouselLinkType): Promise<string> {
+    const key = {
+      Hyperlink: 'link',
+      SpecificGame: 'specific_game',
+      None: 'none',
+    }[type];
+
+    return this.copy(key);
+  }
+
+  private async currentViewDisplayText(show: boolean): Promise<string> {
+    return this.copy(show ? 'show' : 'hide');
+  }
+
+  private async archiveFilterButton(status: CarouselArchiveStatus): Promise<Locator> {
+    return this.listBox.getByRole('button', { name: await this.archiveStatusText(status), exact: true }).first();
   }
 
   private tableHeader(text: string): Locator {
@@ -119,8 +141,8 @@ export class BOCarouselPage {
     return this.tableRows().first();
   }
 
-  private reorderActionButton(index: number): Locator {
-    return this.activeListBox().locator('button').nth(index);
+  private reorderModeButton(): Locator {
+    return this.activeListBox().locator('button').nth(4);
   }
 
   private displayFilterSwitch(): Locator {
@@ -152,6 +174,37 @@ export class BOCarouselPage {
 
   private visibleOption(text: string): Locator {
     return this.visibleOptions().filter({ hasText: text }).first();
+  }
+
+  private async fillVisibleSelectSearch(wrapper: Locator, value: string) {
+    const input = wrapper.locator('input').first();
+    const inputVisible = await input.isVisible({ timeout: 500 }).catch(() => false);
+    const inputEditable = inputVisible ? await input.isEditable().catch(() => false) : false;
+    if (!inputVisible || !inputEditable) {
+      return;
+    }
+
+    await input.click({ force: true });
+    await input.press('Control+A').catch(() => undefined);
+    await input.fill(value);
+    await waitForUiSettled(this.page, 200);
+  }
+
+  private async selectOptionByName(wrapper: Locator, name: string): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await this.openSelectUntilOptionsVisible(wrapper);
+      await this.fillVisibleSelectSearch(wrapper, name);
+      await this.selectVisibleOption(name);
+      await this.page.keyboard.press('Escape').catch(() => undefined);
+      await waitForUiSettled(this.page, 200);
+      await waitForNetworkSettled(this.page);
+
+      if ((await this.page.locator('.el-select-dropdown:visible').count()) === 0) {
+        return;
+      }
+    }
+
+    await expect(this.page.locator('.el-select-dropdown:visible')).toHaveCount(0);
   }
 
   private async openSelectUntilOptionsVisible(wrapper: Locator) {
@@ -212,6 +265,19 @@ export class BOCarouselPage {
         has: this.dialog().locator('.el-form-item__label').filter({ hasText: label }),
       })
       .first();
+  }
+
+  private async dialogSelectWrapperByLabel(labelKey: string): Promise<Locator> {
+    return (await this.dialogFormItemByLabel(await this.copy(labelKey))).locator('.el-select__wrapper').first();
+  }
+
+  private async dialogComboboxByLabel(labelKey: string): Promise<Locator> {
+    const label = await this.copy(labelKey);
+    return this.dialog().getByRole('combobox', { name: new RegExp(this.escapeRegExp(label), 'i') }).first();
+  }
+
+  private selectWrapperByCombobox(combobox: Locator): Locator {
+    return combobox.locator('xpath=ancestor::*[contains(@class,"el-select__wrapper")][1]');
   }
 
   private dialogTextInput(index: number): Locator {
@@ -301,23 +367,12 @@ export class BOCarouselPage {
 
   async selectListSiteByName(name: string): Promise<string> {
     const wrapper = this.listSiteSelect();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await this.openSelectUntilOptionsVisible(wrapper);
-      await this.selectVisibleOption(name);
-      await waitForNetworkSettled(this.page);
-
-      const selected = await wrapper.textContent();
-      if (selected?.includes(name)) {
-        return name;
-      }
-    }
-
-    await expect(wrapper).toContainText(name);
+    await this.selectOptionByName(wrapper, name);
     return name;
   }
 
   async clickArchiveFilter(status: CarouselArchiveStatus) {
-    const button = this.archiveFilterButton(status);
+    const button = await this.archiveFilterButton(status);
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await button.click({ force: true });
@@ -351,9 +406,9 @@ export class BOCarouselPage {
     await expect(this.tableHeader(await this.copy('start_time'))).toBeVisible();
     await expect(this.tableHeader(await this.copy('end_time'))).toBeVisible();
     await expect(this.tableHeader(await this.copy('display_status'))).toBeVisible();
-    await expect(this.archiveFilterButton('Publish')).toBeVisible();
-    await expect(this.archiveFilterButton('Schedule')).toBeVisible();
-    await expect(this.archiveFilterButton('Unpublish')).toBeVisible();
+    await expect(await this.archiveFilterButton('Publish')).toBeVisible();
+    await expect(await this.archiveFilterButton('Schedule')).toBeVisible();
+    await expect(await this.archiveFilterButton('Unpublish')).toBeVisible();
     await expect(this.listBox).toContainText(await this.copy('schedule_status'));
     await expect(this.listBox).toContainText(await this.copy('display_status'));
     await expect(this.displayFilterSwitch()).toBeVisible();
@@ -399,17 +454,7 @@ export class BOCarouselPage {
 
   async selectDialogSiteByName(name: string) {
     const wrapper = this.dialog().locator('.el-select__wrapper').first();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await this.openSelectUntilOptionsVisible(wrapper);
-      await this.selectVisibleOption(name);
-
-      const selected = await wrapper.textContent();
-      if (selected?.includes(name)) {
-        return;
-      }
-    }
-
-    await expect(wrapper).toContainText(name);
+    await this.selectOptionByName(wrapper, name);
   }
 
   async selectFirstDialogSite(): Promise<string> {
@@ -419,16 +464,10 @@ export class BOCarouselPage {
   }
 
   async chooseLinkType(type: CarouselLinkType) {
-    const index = {
-      Hyperlink: 0,
-      SpecificGame: 1,
-      None: 2,
-    }[type];
-
-    await this.clickRadioByIndex(index);
+    await this.clickRadioByText(await this.linkTypeText(type));
 
     if (type === 'SpecificGame') {
-      await expect(this.dialog().locator('.el-select__wrapper')).toHaveCount(4);
+      await this.expectSpecificGameFieldsVisible();
     }
   }
 
@@ -444,8 +483,8 @@ export class BOCarouselPage {
 
   async expectHyperlinkFieldsVisible() {
     await expect(this.dialog().getByText('https://', { exact: true })).toBeVisible();
-    await expect(this.dialog().locator('.el-radio').nth(3)).toContainText(await this.copy('jump_same_page'));
-    await expect(this.dialog().locator('.el-radio').nth(4)).toContainText(await this.copy('new_page'));
+    await expect(this.dialog().locator('.el-radio').filter({ hasText: await this.copy('jump_same_page') }).first()).toBeVisible();
+    await expect(this.dialog().locator('.el-radio').filter({ hasText: await this.copy('new_page') }).first()).toBeVisible();
   }
 
   async fillHyperlink(url: string) {
@@ -595,8 +634,9 @@ export class BOCarouselPage {
   }
 
   async chooseFirstGameProvider(): Promise<string> {
-    const wrapper = this.dialog().locator('.el-select__wrapper').nth(1);
-    await this.openSelectUntilOptionsVisible(wrapper);
+    const combobox = await this.dialogComboboxByLabel('game_provider');
+    const wrapper = this.selectWrapperByCombobox(combobox);
+    await this.openSelectUntilOptionsVisible(combobox);
     const text = await this.chooseFirstVisibleOption();
     await expect(wrapper).toContainText(text);
     await waitForNetworkSettled(this.page, 600);
@@ -604,8 +644,9 @@ export class BOCarouselPage {
   }
 
   async chooseFirstGameType(): Promise<string> {
-    const wrapper = this.dialog().locator('.el-select__wrapper').nth(2);
-    await this.openSelectUntilOptionsVisible(wrapper);
+    const combobox = await this.dialogComboboxByLabel('game_type');
+    const wrapper = this.selectWrapperByCombobox(combobox);
+    await this.openSelectUntilOptionsVisible(combobox);
 
     const options = this.visibleOptions();
     await expect.poll(async () => options.count()).toBeGreaterThan(0);
@@ -621,8 +662,8 @@ export class BOCarouselPage {
       }
     }
 
-    await this.openSelectUntilOptionsVisible(wrapper);
-    await wrapper.click({ force: true });
+    await this.openSelectUntilOptionsVisible(combobox);
+    await combobox.click({ force: true });
     await this.page.keyboard.press('ArrowDown');
     await this.page.keyboard.press('Enter');
     await expect(wrapper).toContainText(text);
@@ -639,17 +680,16 @@ export class BOCarouselPage {
   }
 
   async chooseFirstGameName(): Promise<string> {
-    const wrapper = this.dialog().locator('.el-select__wrapper').nth(3);
-    await this.openSelectUntilOptionsVisible(wrapper);
+    const combobox = await this.dialogComboboxByLabel('game_name');
+    await this.openSelectUntilOptionsVisible(combobox);
 
     const options = this.visibleOptions();
     await expect.poll(async () => options.count()).toBeGreaterThan(0);
 
     const text = ((await options.first().textContent()) ?? '').trim();
-    const input = wrapper.locator('input').first();
-    await input.focus();
-    await input.press('ArrowDown');
-    await input.press('Enter');
+    await combobox.focus();
+    await combobox.press('ArrowDown');
+    await combobox.press('Enter');
     await waitForUiSettled(this.page, 1200);
     return text;
   }
@@ -939,17 +979,15 @@ export class BOCarouselPage {
   }
 
   async toggleDisplayFilter(show: boolean) {
-    const expectedText = show ? 'ON' : 'OFF';
+    const expectedText = await this.currentViewDisplayText(show);
 
-    if ((await this.displayFilterSwitch().textContent())?.includes(expectedText)) {
-      await expect(this.currentViewLabel()).toContainText(show ? 'Show' : 'Hide');
+    if (((await this.currentViewLabel().textContent()) ?? '').includes(expectedText)) {
       return;
     }
 
     await this.displayFilterSwitch().click({ force: true });
     await waitForNetworkSettled(this.page, 1000);
-    await expect(this.displayFilterSwitch()).toContainText(expectedText);
-    await expect(this.currentViewLabel()).toContainText(show ? 'Show' : 'Hide');
+    await expect(this.currentViewLabel()).toContainText(expectedText);
   }
 
   async toggleRowDisplayStatusByText(text: string) {
@@ -960,14 +998,8 @@ export class BOCarouselPage {
   }
 
   async expectCurrentView(show: boolean, status: CarouselArchiveStatus) {
-    const statusText = {
-      Publish: 'Live',
-      Schedule: 'Scheduled',
-      Unpublish: 'Offline',
-    }[status];
-
-    await expect(this.currentViewLabel()).toContainText(statusText);
-    await expect(this.currentViewLabel()).toContainText(show ? 'Show' : 'Hide');
+    await expect(this.currentViewLabel()).toContainText(await this.archiveStatusText(status));
+    await expect(this.currentViewLabel()).toContainText(await this.currentViewDisplayText(show));
   }
 
   async rowCount() {
@@ -983,7 +1015,7 @@ export class BOCarouselPage {
   }
 
   async enterReorderMode() {
-    await this.reorderActionButton(4).click({ force: true });
+    await this.reorderModeButton().click({ force: true });
     await expect(this.page.locator('.page-box')).toHaveCount(1);
     await expect(this.activeTableRows().first().locator('.drag-handle')).toBeVisible();
   }
@@ -1036,31 +1068,33 @@ export class BOCarouselPage {
     await this.expectLatestAlertContains(await this.copy(key, namespace, vars));
   }
 
+  async expectLatestAlertContainsAny(messages: Array<string | RegExp>) {
+    await expect
+      .poll(async () => {
+        const texts = ((await this.page.locator('.el-message, [role="alert"]').allTextContents()) ?? []).map(
+          (text) => text.trim()
+        );
+
+        return messages.some((message) =>
+          texts.some((text) =>
+            typeof message === 'string' ? text.includes(message) : message.test(text)
+          )
+        );
+      })
+      .toBeTruthy();
+  }
+
   async expectLatestAlertContains(message: string | RegExp) {
-    const deadline = Date.now() + 5000;
+    await expect
+      .poll(async () => {
+        const texts = ((await this.page.locator('.el-message, [role="alert"]').allTextContents()) ?? []).map(
+          (text) => text.trim()
+        );
 
-    while (Date.now() < deadline) {
-      const texts = ((await this.page.locator('.el-message, [role="alert"]').allTextContents()) ?? []).map(
-        (text) => text.trim()
-      );
-
-      const matched = texts.some((text) =>
-        typeof message === 'string' ? text.includes(message) : message.test(text)
-      );
-
-      if (matched) {
-        return;
-      }
-
-      await this.page.waitForTimeout(200);
-    }
-
-    const actualTexts = ((await this.page.locator('.el-message, [role="alert"]').allTextContents()) ?? []).map(
-      (text) => text.trim()
-    );
-
-    expect(actualTexts).toEqual(
-      expect.arrayContaining([typeof message === 'string' ? expect.stringContaining(message) : expect.stringMatching(message)])
-    );
+        return texts.some((text) =>
+          typeof message === 'string' ? text.includes(message) : message.test(text)
+        );
+      })
+      .toBeTruthy();
   }
 }

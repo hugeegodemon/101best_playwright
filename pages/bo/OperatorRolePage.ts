@@ -274,6 +274,13 @@ export class BOOperatorRolePage {
     await expect(this.rowByRoleName(name)).toContainText(text);
   }
 
+  async expectRoleStatus(name: string, status: RoleStatus) {
+    await this.expectRoleInList(name);
+    const roleSwitch = this.rowByRoleName(name).getByRole('switch');
+
+    await expect(roleSwitch).toHaveAttribute('aria-checked', status === 'Enable' ? 'true' : 'false');
+  }
+
   async expectAlertContainsAny(messages: Array<string | RegExp>) {
     const alerts = this.page.locator('.el-message, [role="alert"]');
     await expect(alerts.first()).toBeVisible();
@@ -294,7 +301,6 @@ export class BOOperatorRolePage {
       await this.text('added_successfully'),
       await this.text('update_success'),
       await this.text('edit_success'),
-      /success|added|updated|edited/i,
     ]);
   }
 }

@@ -467,7 +467,6 @@ export class BOOperatorPage {
     await this.expectAlertContainsAny([
       await this.text('success'),
       await this.text('added_successfully'),
-      /success|added/i,
     ]);
   }
 
@@ -476,7 +475,6 @@ export class BOOperatorPage {
       await this.text('success'),
       await this.text('update_success'),
       await this.text('edit_success'),
-      /success|updated|edited/i,
     ]);
   }
 

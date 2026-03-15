@@ -1,12 +1,13 @@
 import path from 'path';
 import { BOCarouselPage } from '../../../pages/bo/CarouselPage';
 import { BOSiteListPage } from '../../../pages/bo/SiteListPage';
+import { boSmokeAuthFile } from '../helpers/auth-file';
 import { buildCarouselLinkDraft, dateTimeOffset } from '../helpers/data';
 import { LANGUAGE_VALIDATION_BO_SITE, MANAGED_BO_SITE } from '../helpers/site';
 import { expect, test } from './test';
 
 const fixture = (name: string) => path.resolve(process.cwd(), 'tests/fixtures/images', name);
-const authFile = path.resolve(process.cwd(), 'playwright/.auth/bo-smoke-user.json');
+const authFile = boSmokeAuthFile();
 const displayedUrl = (url: string) => `https://${url}`;
 const MANAGED_CAROUSEL_SITE = MANAGED_BO_SITE;
 const LANGUAGE_VALIDATION_CAROUSEL_SITE = LANGUAGE_VALIDATION_BO_SITE;
@@ -63,6 +64,29 @@ async function createPastStartHyperlink(
   await carouselPage.selectListSiteByName(siteName);
   await carouselPage.clickArchiveFilter('Publish');
   await carouselPage.toggleDisplayFilter(show);
+}
+
+async function ensurePastStartHyperlinkVisibleInPublishShow(
+  carouselPage: BOCarouselPage,
+  siteName: string,
+  url: string,
+  startTime: string,
+  successToastKey?: string
+) {
+  const expectedUrl = displayedUrl(url);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await createPastStartHyperlink(carouselPage, siteName, url, startTime, successToastKey, true);
+    await carouselPage.expectCurrentView(true, 'Publish');
+
+    if ((await carouselPage.rowByText(expectedUrl).count()) > 0) {
+      return;
+    }
+
+    await clearManagedCarouselSite(carouselPage);
+  }
+
+  throw new Error(`Unable to place carousel in publish-show view: ${expectedUrl}`);
 }
 
 async function removeCarouselFromCurrentView(
@@ -173,7 +197,7 @@ async function seedPublishedCarousels(
 }
 
 test.describe('BO Carousel', () => {
-  test.describe.configure({ timeout: 120000 });
+  test.describe.configure({ timeout: 120000, mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
     const carouselPage = new BOCarouselPage(page);
@@ -454,7 +478,7 @@ test.describe('BO Carousel', () => {
     await carouselPage.expectLatestAlertContains(await carouselPage.copy('create_banner_information_1'));
     await carouselPage.selectListSiteByName(MANAGED_CAROUSEL_SITE);
     await carouselPage.clickArchiveFilter('Schedule');
-    await carouselPage.expectFirstRowContains(provider);
+    await carouselPage.expectRowVisibleByTexts([provider, startTime]);
   });
 
   test('past-start hyperlink carousel appears in publish show list when display slots remain', async ({ page }) => {
@@ -463,14 +487,13 @@ test.describe('BO Carousel', () => {
 
     await carouselPage.gotoCarouselList();
     await carouselPage.expectCarouselListVisible();
-    await createPastStartHyperlink(
+    await ensurePastStartHyperlinkVisibleInPublishShow(
       carouselPage,
       MANAGED_CAROUSEL_SITE,
       draft.url,
       dateTimeOffset(-5),
       'create_banner_information_0'
     );
-    await carouselPage.expectCurrentView(true, 'Publish');
     await carouselPage.expectRowVisibleByText(displayedUrl(draft.url));
   });
 
@@ -480,8 +503,12 @@ test.describe('BO Carousel', () => {
 
     await carouselPage.gotoCarouselList();
     await carouselPage.expectCarouselListVisible();
-    await createPastStartHyperlink(carouselPage, MANAGED_CAROUSEL_SITE, draft.url, dateTimeOffset(-10));
-    await carouselPage.expectCurrentView(true, 'Publish');
+    await ensurePastStartHyperlinkVisibleInPublishShow(
+      carouselPage,
+      MANAGED_CAROUSEL_SITE,
+      draft.url,
+      dateTimeOffset(-10)
+    );
     await carouselPage.expectRowVisibleByText(displayedUrl(draft.url));
     await removeCarouselFromCurrentView(carouselPage, displayedUrl(draft.url));
     await carouselPage.expectRowNotVisibleByText(displayedUrl(draft.url));
@@ -509,8 +536,12 @@ test.describe('BO Carousel', () => {
 
     await carouselPage.gotoCarouselList();
     await carouselPage.expectCarouselListVisible();
-    await createPastStartHyperlink(carouselPage, MANAGED_CAROUSEL_SITE, draft.url, dateTimeOffset(-12));
-    await carouselPage.expectCurrentView(true, 'Publish');
+    await ensurePastStartHyperlinkVisibleInPublishShow(
+      carouselPage,
+      MANAGED_CAROUSEL_SITE,
+      draft.url,
+      dateTimeOffset(-12)
+    );
     await carouselPage.clickLowerRowByText(displayedUrl(draft.url));
     await carouselPage.expectConfirmInactiveDialog();
     await carouselPage.confirmInactiveAndWaitForStatusChange();
@@ -565,9 +596,12 @@ test.describe('BO Carousel', () => {
 
     await carouselPage.gotoCarouselList();
     await carouselPage.expectCarouselListVisible();
-    await createPastStartHyperlink(carouselPage, MANAGED_CAROUSEL_SITE, draft.url, dateTimeOffset(-15));
-    await carouselPage.toggleDisplayFilter(true);
-    await carouselPage.expectCurrentView(true, 'Publish');
+    await ensurePastStartHyperlinkVisibleInPublishShow(
+      carouselPage,
+      MANAGED_CAROUSEL_SITE,
+      draft.url,
+      dateTimeOffset(-15)
+    );
     await carouselPage.expectRowVisibleByText(displayedUrl(draft.url));
 
     await carouselPage.toggleRowDisplayStatusByText(displayedUrl(draft.url));
@@ -646,7 +680,11 @@ test.describe('BO Carousel', () => {
     await carouselPage.expectRowVisibleByText(displayedUrl(draft.url));
 
     await carouselPage.toggleRowDisplayStatusByText(displayedUrl(draft.url));
-    await carouselPage.expectLatestAlertContains(/Display limit reached/i);
+    await carouselPage.expectLatestAlertContainsAny([
+      await carouselPage.copy('create_banner_information_2'),
+      await carouselPage.copy('000420', 'error_code'),
+      await carouselPage.copy('000442', 'error_code'),
+    ]);
     await carouselPage.expectCurrentView(false, 'Publish');
     await carouselPage.expectRowVisibleByText(displayedUrl(draft.url));
 
@@ -678,7 +716,11 @@ test.describe('BO Carousel', () => {
       await removeCarouselFromCurrentView(secondCarouselPage, displayedUrl(draft.url));
 
       await carouselPage.submitEditDialogAndWaitForUpdateResult();
-      await carouselPage.expectLatestAlertContains(/Deleted by another user/i);
+      await carouselPage.expectLatestAlertContainsAny([
+        await carouselPage.copy('000416', 'error_code'),
+        await carouselPage.copy('000439', 'error_code'),
+        await carouselPage.copy('000684', 'error_code'),
+      ]);
     } finally {
       await secondContext.close();
     }
@@ -710,7 +752,11 @@ test.describe('BO Carousel', () => {
       await removeCarouselFromCurrentView(secondCarouselPage, displayedUrl(draft.url));
 
       await carouselPage.confirmDeletionAndWaitForDeleteResult();
-      await carouselPage.expectLatestAlertContains(/Deleted by another user/i);
+      await carouselPage.expectLatestAlertContainsAny([
+        await carouselPage.copy('000416', 'error_code'),
+        await carouselPage.copy('000439', 'error_code'),
+        await carouselPage.copy('000684', 'error_code'),
+      ]);
     } finally {
       await secondContext.close();
     }

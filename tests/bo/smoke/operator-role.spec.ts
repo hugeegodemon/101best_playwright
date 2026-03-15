@@ -43,8 +43,7 @@ test.describe('BO Operator Role', () => {
 
     await rolePage.expectRoleNameErrorContains([
       await i18n.t('role_validate'),
-      /1.*20/i,
-      /numbers and symbols are not allowed/i,
+      await i18n.t('000090_30', 'error_code'),
     ]);
   });
 
@@ -59,7 +58,7 @@ test.describe('BO Operator Role', () => {
     await rolePage.gotoRolePermissionList();
     await rolePage.expectRolePermissionListVisible();
     await rolePage.expectRoleInList(roleName);
-    await rolePage.expectRoleRowContains(roleName, 'ON');
+    await rolePage.expectRoleStatus(roleName, 'Enable');
 
     await rolePage.clickEditByRoleName(roleName);
     await rolePage.expectEditRoleDialogVisible();
@@ -68,6 +67,6 @@ test.describe('BO Operator Role', () => {
 
     await rolePage.toggleStatusByRoleName(roleName);
     await rolePage.expectSuccessAlert();
-    await rolePage.expectRoleRowContains(roleName, 'OFF');
+    await rolePage.expectRoleStatus(roleName, 'Disable');
   });
 });

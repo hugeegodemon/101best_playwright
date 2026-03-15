@@ -40,12 +40,13 @@ test.describe('BO System Bank Edit Validation @serial', () => {
 
   test('edit system bank cannot use duplicate code in the same region', async ({ page }) => {
     const systemBankPage = new BOSystemBankListPage(page);
+    const region = await systemBankPage.copy('region_code_1');
 
     await systemBankPage.gotoSystemBankList();
     await systemBankPage.expectSystemBankListVisible();
-    await systemBankPage.selectFilterRegion(await systemBankPage.copy('region_code_1'));
+    await systemBankPage.selectFilterRegion(region);
     await systemBankPage.clickSearch();
-    await expect(systemBankPage.listRows().first()).toBeVisible();
+    await systemBankPage.expectListHasRows();
     const duplicateBankCode = (await systemBankPage.topRowTexts())[0];
 
     await createBankAndOpenEdit(page, systemBankPage, uniqueUpperAlnum(8));

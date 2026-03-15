@@ -118,6 +118,15 @@ export function buildCarouselLinkDraft(prefix = 'carousel') {
   };
 }
 
+export function buildAgentData(seed: string = uniqueSeed()) {
+  return {
+    account: `agt${seed}`,
+    name: 'AutoAgent',
+    password: 'Test12345',
+    email: `agent${seed}@test.com`,
+  };
+}
+
 export function buildCustomerServiceDraft(prefix = 'AutoCS') {
   const suffix = uniqueAlpha(6);
 

@@ -714,18 +714,18 @@ export class BOSiteListPage {
   }
 
   async toggleTopRowBackOfficeStatus() {
-    await this.topListRow().locator('.el-switch').first().evaluate((el) => el.click());
+    await this.topListRow().locator('.el-switch').first().click({ force: true });
   }
 
   async toggleTopRowFrontendStatus() {
-    await this.topListRow().locator('.el-switch').nth(1).evaluate((el) => el.click());
+    await this.topListRow().locator('.el-switch').nth(1).click({ force: true });
   }
 
   async toggleRowBackOfficeStatus(siteName: string) {
-    await this.listRowBySiteName(siteName).locator('.el-switch').first().evaluate((el) => el.click());
+    await this.listRowBySiteName(siteName).locator('.el-switch').first().click({ force: true });
   }
 
   async toggleRowFrontendStatus(siteName: string) {
-    await this.listRowBySiteName(siteName).locator('.el-switch').nth(1).evaluate((el) => el.click());
+    await this.listRowBySiteName(siteName).locator('.el-switch').nth(1).click({ force: true });
   }
 }
